@@ -1,0 +1,69 @@
+/* Paleta Unblocking Minds — extraída do guia oficial de identidade visual */
+:root {
+  --paper: #283758; /* azul-marinho da marca — fundo principal do app */
+  --ink: #10143a; /* texto escuro — usado sobre cartões claros */
+  --ink-on-dark: #f7f5ef; /* texto claro — usado direto sobre o fundo navy */
+  --teal: #f6a017; /* laranja da marca — ações primárias e destaques */
+  --mustard: #c9891b; /* dourado mais fechado — usado como texto (ex: "adequado") */
+  --mustard-bright: #f3e354; /* amarelo vivo da marca — títulos em fonte script */
+  --sage: #4f6248; /* verde-oliva da marca — seções e blocos de "ritual consciente" */
+  --coral: #ea5063; /* coral da marca — selos/badges (texto escuro por cima) */
+  --wine: #c23653; /* variação mais escura do coral — erros e estados negativos */
+  --success: #25d366; /* verde da marca — usado em preços/confirmações no guia */
+  --line: #e6e3dd; /* borda sobre cartões claros */
+  --line-on-dark: rgba(247, 245, 239, 0.18); /* borda/divisor direto sobre o navy */
+  --card: #ffffff;
+  --muted: #6b6660; /* texto secundário sobre cartões claros */
+  --muted-on-dark: #b6bad8; /* texto secundário direto sobre o navy */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Work Sans", sans-serif;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Pequenas animações usadas nos cards e badges para deixar o app mais
+   "vivo" — sem exagerar, só uma leve entrada suave. */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.7); }
+  70% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Fagulha pulsando — usada nas telas de espera (gerar aula, gerar
+   relatório, avaliar fala/escrita) para sinalizar "algo está acontecendo"
+   sem depender de um spinner genérico. */
+@keyframes sparkPulse {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  50% { transform: scale(1.14) rotate(-6deg); opacity: 1; }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.35s ease both;
+}
+
+.pop-in {
+  animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+::selection {
+  background: var(--teal);
+  color: var(--ink);
+}
