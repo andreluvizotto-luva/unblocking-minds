@@ -5,6 +5,18 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { Spark } from "@/components/ui";
 
+// Espelha a política de senha configurada no painel do Supabase. A validação
+// que vale é sempre a do servidor (esta aqui é burlável pelo console) — o
+// objetivo deste bloco é só dar ao aluno um retorno claro em português, em
+// vez do erro genérico em inglês que o Supabase devolve.
+const PASSWORD_RULES: { test: (v: string) => boolean; label: string }[] = [
+  { test: (v) => v.length >= 10, label: "pelo menos 10 caracteres" },
+  { test: (v) => /[a-z]/.test(v), label: "uma letra minúscula" },
+  { test: (v) => /[A-Z]/.test(v), label: "uma letra maiúscula" },
+  { test: (v) => /[0-9]/.test(v), label: "um número" },
+  { test: (v) => /[^A-Za-z0-9]/.test(v), label: "um símbolo (ex: ! @ # $)" },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = supabaseBrowser();
@@ -20,6 +32,12 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     if (mode === "signup") {
+      const faltando = PASSWORD_RULES.filter((r) => !r.test(password));
+      if (faltando.length > 0) {
+        setError(`Sua senha precisa ter ${faltando.map((r) => r.label).join(", ")}.`);
+        setLoading(false);
+        return;
+      }
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -96,6 +114,19 @@ export default function LoginPage() {
           minLength={6}
           style={inputStyle}
         />
+
+        {mode === "signup" && password.length > 0 && (
+          <div style={{ fontSize: 12, marginBottom: 10, marginTop: -4, lineHeight: 1.7 }}>
+            {PASSWORD_RULES.map((rule) => {
+              const ok = rule.test(password);
+              return (
+                <div key={rule.label} style={{ color: ok ? "var(--sage)" : "var(--muted)" }}>
+                  {ok ? "✓" : "○"} {rule.label}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {error && <div style={{ color: "var(--wine)", fontSize: 13, marginBottom: 10 }}>{error}</div>}
 

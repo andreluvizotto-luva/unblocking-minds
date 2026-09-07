@@ -90,8 +90,16 @@ create trigger profiles_protect_admin_fields
   before update on public.profiles
   for each row execute function public.protect_admin_only_profile_fields();
 
-create policy "sessions: owner read/write" on public.sessions
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- Endurecimento: o aluno LÊ as próprias aulas (a tela de perfil consulta
+-- esta tabela direto do navegador), mas não escreve nelas. Antes a policy
+-- "for all" permitia que ele, chamando a API do Supabase direto do console,
+-- alterasse a própria aula: trocar o "level" antes de gerar o relatório
+-- (recebendo avaliação de um nível diferente do que o admin definiu), editar
+-- o "content" com os gabaritos, marcar status = completed sem fazer nada, ou
+-- inserir aulas fabricadas para inflar as estatísticas do painel.
+-- Todas as escritas passaram a ser feitas pelo backend com a service_role.
+create policy "sessions: owner select" on public.sessions
+  for select using (auth.uid() = user_id);
 
 -- Leitura e criação apenas — nenhum fluxo do app precisa editar ou apagar
 -- uma dificuldade já registrada pelo cliente, então update/delete ficam
@@ -114,10 +122,10 @@ create policy "reports: owner select via session" on public.reports
     exists (select 1 from public.sessions s where s.id = session_id and s.user_id = auth.uid())
   );
 
-create policy "reports: owner insert via session" on public.reports
-  for insert with check (
-    exists (select 1 from public.sessions s where s.id = session_id and s.user_id = auth.uid())
-  );
+-- Endurecimento: o relatório só é criado pela rota /api/report/generate,
+-- nunca pelo navegador. Sem esta policy de insert, o aluno não consegue
+-- inserir um relatório fabricado com notas perfeitas antes de fazer a aula
+-- (a restrição unique(session_id) permitiria "reservar" o relatório).
 
 -- Cria o profile automaticamente quando um usuário se cadastra
 create or replace function public.handle_new_user()

@@ -167,7 +167,12 @@ Responda apenas o JSON.`;
     return NextResponse.json({ error: e.message || "Falha ao gerar aula" }, { status: 502 });
   }
 
-  const { data: session, error } = await supabase
+  // A aula é gravada com a chave service_role. O aluno continua podendo LER
+  // as próprias aulas (a tela de perfil depende disso), mas não pode criar
+  // nem alterar nenhuma pela API do Supabase direto do navegador — o que
+  // impediria, por exemplo, forjar um nível diferente do definido pelo admin
+  // ou fabricar aulas para inflar as estatísticas.
+  const { data: session, error } = await supabaseAdmin()
     .from("sessions")
     .insert({
       user_id: user.id,

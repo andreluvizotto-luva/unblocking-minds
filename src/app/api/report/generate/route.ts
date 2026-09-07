@@ -19,6 +19,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
+  // Esta leitura usa a sessão do próprio aluno de propósito: a RLS garante
+  // que ele só enxerga as próprias aulas, então se a linha veio, a aula é
+  // dele. Daqui pra frente as ESCRITAS usam a chave service_role, porque o
+  // aluno não pode mais escrever nessas tabelas direto do navegador.
   const { data: session, error: sessionErr } = await supabase
     .from("sessions")
     .select("*")
@@ -27,6 +31,8 @@ export async function POST(req: Request) {
   if (sessionErr || !session) {
     return NextResponse.json({ error: "Aula não encontrada" }, { status: 404 });
   }
+
+  const admin = supabaseAdmin();
 
   const { data: difficulties } = await supabase
     .from("difficulties")
@@ -70,7 +76,7 @@ Responda apenas o JSON.`;
     return NextResponse.json({ error: e.message || "Falha ao gerar relatório" }, { status: 502 });
   }
 
-  const { error: insertErr } = await supabase.from("reports").insert({
+  const { error: insertErr } = await admin.from("reports").insert({
     session_id: sessionId,
     summary: report.summary,
     by_skill: report.bySkill,
@@ -87,7 +93,7 @@ Responda apenas o JSON.`;
     );
   }
 
-  await supabase
+  await admin
     .from("sessions")
     .update({ status: "completed", completed_at: new Date().toISOString() })
     .eq("id", sessionId);
@@ -95,11 +101,6 @@ Responda apenas o JSON.`;
   // Atualiza sequência de dias e verifica conquistas. Isso roda depois que
   // a aula já está marcada como concluída, então já entra na contagem.
   const { currentStreak, longestStreak } = await updateStreakOnCompletion(supabase, user.id);
-  // Conquistas e dificuldade adaptativa usam a chave service_role: o aluno
-  // já foi autenticado acima e os IDs usados aqui vêm do servidor, nunca do
-  // corpo da requisição — então não há RLS de aluno nessas duas tabelas,
-  // só a rota /api/admin/* e este fluxo interno podem escrever nelas.
-  const admin = supabaseAdmin();
   const unlockedAchievements = await checkAndUnlockAchievements(admin, user.id, {
     currentStreak,
     level: session.level,
