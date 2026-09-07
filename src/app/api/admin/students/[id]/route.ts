@@ -114,3 +114,49 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   return NextResponse.json({ ok: true });
 }
+
+// Apaga o aluno de forma definitiva. Remover o usuário do Auth dispara o
+// "on delete cascade" em todas as tabelas que referenciam auth.users, então
+// perfil, aulas, relatórios, dificuldades, progresso por habilidade e
+// conquistas somem junto. Não há como desfazer.
+//
+// Duas travas de segurança, além da checagem de admin:
+//  1. um admin nunca apaga a própria conta;
+//  2. não é possível apagar outro admin sem antes remover o status de
+//     administrador dele — evita perder acesso ao painel por engano.
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  const userId = params.id;
+
+  if (userId === auth.user.id) {
+    return NextResponse.json({ error: "Você não pode apagar a sua própria conta." }, { status: 400 });
+  }
+
+  const admin = supabaseAdmin();
+
+  const { data: target, error: targetErr } = await admin
+    .from("profiles")
+    .select("name, is_admin")
+    .eq("id", userId)
+    .single();
+
+  if (targetErr || !target) {
+    return NextResponse.json({ error: "Aluno não encontrado" }, { status: 404 });
+  }
+
+  if (target.is_admin) {
+    return NextResponse.json(
+      { error: "Este aluno é administrador. Remova o acesso de admin antes de apagar a conta." },
+      { status: 400 }
+    );
+  }
+
+  const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
+  if (deleteErr) {
+    return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, deletedName: target.name });
+}

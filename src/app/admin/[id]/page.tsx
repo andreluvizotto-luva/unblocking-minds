@@ -79,6 +79,9 @@ export default function AdminStudentPage() {
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -112,6 +115,23 @@ export default function AdminStudentPage() {
       setError(e.message || "Erro ao carregar");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Exclusão definitiva. O servidor é quem realmente valida (não é admin
+  // próprio, não é outro admin); aqui a confirmação por digitação existe
+  // só para evitar o clique acidental numa ação que não tem volta.
+  async function handleDelete() {
+    setDeleting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/students/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Falha ao apagar");
+      router.push("/admin");
+    } catch (e: any) {
+      setError(e.message || "Erro ao apagar");
+      setDeleting(false);
     }
   }
 
@@ -451,6 +471,113 @@ export default function AdminStudentPage() {
                   </div>
                 ))}
               </div>
+            </Card>
+
+            <Card style={{ marginTop: 16, borderColor: "var(--wine)" }}>
+              <SectionLabel>Apagar aluno</SectionLabel>
+              {detail.profile.is_admin ? (
+                <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                  Este aluno é administrador. Remova o acesso de admin acima antes de poder apagar a conta.
+                </div>
+              ) : currentUserId === detail.id ? (
+                <div style={{ fontSize: 13, color: "var(--muted)" }}>Você não pode apagar a sua própria conta.</div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, marginBottom: 12 }}>
+                    Apaga a conta e <strong>todo o histórico</strong> deste aluno: {detail.sessions.length}{" "}
+                    {detail.sessions.length === 1 ? "aula" : "aulas"}, relatórios, notas, dificuldades registradas e
+                    conquistas. Não há como desfazer. Se a intenção for só tirar o acesso, use <em>desativar</em> acima.
+                  </div>
+
+                  {!showDelete ? (
+                    <button
+                      onClick={() => setShowDelete(true)}
+                      style={{
+                        padding: "9px 16px",
+                        background: "transparent",
+                        color: "var(--wine)",
+                        border: "1px solid var(--wine)",
+                        borderRadius: 3,
+                        fontWeight: 600,
+                        fontSize: 13.5,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Apagar este aluno
+                    </button>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 13, marginBottom: 8 }}>
+                        Para confirmar, digite o nome do aluno:{" "}
+                        <strong>{detail.profile.name || detail.email}</strong>
+                      </div>
+                      <input
+                        value={confirmText}
+                        onChange={(e) => setConfirmText(e.target.value)}
+                        placeholder="Digite o nome para confirmar"
+                        style={{
+                          width: "100%",
+                          padding: "9px 11px",
+                          border: "1px solid var(--line)",
+                          borderRadius: 3,
+                          fontSize: 13.5,
+                          marginBottom: 10,
+                          fontFamily: "inherit",
+                        }}
+                      />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={handleDelete}
+                          disabled={
+                            deleting ||
+                            confirmText.trim() !== (detail.profile.name || detail.email).trim()
+                          }
+                          style={{
+                            padding: "9px 16px",
+                            background:
+                              confirmText.trim() === (detail.profile.name || detail.email).trim()
+                                ? "var(--wine)"
+                                : "var(--line)",
+                            color:
+                              confirmText.trim() === (detail.profile.name || detail.email).trim()
+                                ? "#fff"
+                                : "var(--muted)",
+                            border: "none",
+                            borderRadius: 3,
+                            fontWeight: 600,
+                            fontSize: 13.5,
+                            cursor:
+                              confirmText.trim() === (detail.profile.name || detail.email).trim()
+                                ? "pointer"
+                                : "not-allowed",
+                          }}
+                        >
+                          {deleting ? "Apagando…" : "Apagar definitivamente"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDelete(false);
+                            setConfirmText("");
+                          }}
+                          disabled={deleting}
+                          style={{
+                            padding: "9px 16px",
+                            background: "transparent",
+                            color: "var(--muted)",
+                            border: "1px solid var(--line)",
+                            borderRadius: 3,
+                            fontWeight: 600,
+                            fontSize: 13.5,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </Card>
           </>
         )}
