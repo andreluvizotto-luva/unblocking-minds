@@ -18,7 +18,11 @@ const csp = [
   // O app usa estilos inline do React (style={{...}}) e o Google Fonts.
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: blob:",
+  // https: liberado porque o aluno pode apontar a foto de perfil para
+  // qualquer endereço (avatar_url). Sem isso o avatar de quem usa uma
+  // imagem externa fica quebrado. Imagem é recurso passivo, não executa
+  // código, e a exfiltração por URL já está barrada pelo connect-src.
+  "img-src 'self' data: blob: https:",
   // Áudio do listening (TTS) e a gravação da fala do aluno chegam como blob.
   "media-src 'self' blob: data:",
   // Só o próprio app e o Supabase — impede exfiltração de dados para
