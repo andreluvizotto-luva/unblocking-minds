@@ -80,3 +80,51 @@ Isso tem custo por uso na OpenAI (poucos centavos por aula) e exige a variável 
 - **Histórico/dashboard**: já implementado em `/perfil` (evolução e histórico) e `/admin` (painel administrativo).
 - **Recuperação de senha, verificação de e-mail**: o Supabase Auth já suporta, só falta configurar os templates de e-mail no painel.
 - **Testes automatizados.**
+
+## Débito técnico conhecido
+
+Coisas que sabemos que ficaram por fazer, com o porquê — para não serem
+redescobertas do zero mais tarde.
+
+### CSP: `'unsafe-inline'` no `script-src`
+
+O cabeçalho de segurança em `next.config.js` precisa de `'unsafe-inline'` na
+diretiva `script-src`, o que enfraquece a proteção contra XSS: um script
+injetado na página executaria.
+
+**O que já foi tentado.** A correção correta é usar nonce — um número
+aleatório por requisição, que só os scripts legítimos carregam. Isso foi
+implementado (CSP movido para o `middleware.ts`, nonce nos cabeçalhos da
+requisição, `'strict-dynamic'`) e **funcionou em `next dev`**: todos os
+scripts recebiam nonce e nenhuma violação aparecia no console.
+
+**Por que não foi adiante.** No build de produção, falha: as páginas do app
+são pré-renderizadas estaticamente (`○ Static` na saída do `next build`), e
+um HTML gerado no momento do build não tem como conter um nonce que só
+existe no momento da requisição. O resultado é a página renderizando como
+casca estática e o React nunca hidratando — a interface aparece, mas nada
+funciona. Só é detectável com `npm run build && npm start`; em modo dev
+passa despercebido.
+
+**O que seria preciso para retomar.** Tornar as páginas dinâmicas
+(`export const dynamic = "force-dynamic"`, ou ler `headers()` no layout
+raiz). Custo: cada acesso passa a invocar uma função na Vercel em vez de
+servir HTML pronto, consumindo mais da cota do plano.
+
+**Por que a espera é aceitável.** A superfície real de XSS aqui é mínima: não
+há `dangerouslySetInnerHTML` nem `innerHTML` em lugar nenhum do código, e o
+React escapa todo o conteúdo por padrão. O CSP atual ainda protege contra
+exfiltração de dados (`connect-src` restrito ao app e ao Supabase) e contra
+clickjacking (`frame-ancestors 'none'`). O que de fato mantém essa lacuna
+fechada é **não introduzir** essas construções no código.
+
+### RLS: a tabela `difficulties` aceita escrita do navegador
+
+Todas as outras tabelas tiveram a escrita movida para o backend com a chave
+`service_role` (ver os comentários em `supabase/schema.sql`). A `difficulties`
+ficou de fora porque é inserida direto do cliente, em `SkillBlocks.tsx`.
+Travá-la exige mover essas chamadas para rotas de API.
+
+Prioridade baixa: o pior caso é o aluno registrar dificuldades falsas nas
+próprias aulas, o que só piora o relatório dele mesmo. Não expõe dado de
+ninguém nem permite escalar privilégio.
