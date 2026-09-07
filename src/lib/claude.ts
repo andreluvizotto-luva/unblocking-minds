@@ -25,12 +25,16 @@ export const UNBLOCKING_VOICE_SYSTEM_PROMPT =
   "exagerar no otimismo nem soar artificial. " +
   "Responda SOMENTE com JSON válido, no formato exato pedido, sem markdown, sem texto antes ou depois.";
 
-export async function askClaude(prompt: string, system?: string) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY não configurada no servidor (.env.local)");
-  }
+// Uma aula completa (leitura, comparação, escuta, gramática, fala e escrita)
+// gera um JSON grande — nos níveis mais altos, ainda maior, porque os textos
+// e os distratores ficam mais longos. Com um teto baixo a resposta chegava
+// cortada no meio e o JSON.parse quebrava com um erro incompreensível na
+// tela do aluno ("Expected ',' or ']' after array element..."). Este teto
+// dá folga confortável para o caso mais pesado (C1/C2 com dificuldade
+// adaptativa acumulada).
+const MAX_TOKENS = 8000;
 
+async function callClaude(prompt: string, system: string, apiKey: string) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -40,8 +44,8 @@ export async function askClaude(prompt: string, system?: string) {
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 3000,
-      system: system || SYSTEM_PROMPT,
+      max_tokens: MAX_TOKENS,
+      system,
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -57,6 +61,47 @@ export async function askClaude(prompt: string, system?: string) {
     .map((b: any) => b.text)
     .join("\n");
 
-  const cleaned = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(cleaned);
+  return { text, stopReason: data.stop_reason as string | undefined };
+}
+
+export async function askClaude(prompt: string, system?: string) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY não configurada no servidor (.env.local)");
+  }
+
+  const systemPrompt = system || SYSTEM_PROMPT;
+  let ultimoErro = "";
+
+  // Duas tentativas: a geração é probabilística, então um JSON malformado
+  // por acaso (uma aspa não escapada, uma vírgula faltando) normalmente
+  // desaparece ao repetir. Só falha de verdade se as duas quebrarem.
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    const { text, stopReason } = await callClaude(prompt, systemPrompt, apiKey);
+
+    if (stopReason === "max_tokens") {
+      ultimoErro = `resposta truncada no limite de ${MAX_TOKENS} tokens`;
+      console.error(`[askClaude] tentativa ${tentativa}: ${ultimoErro}`);
+      continue;
+    }
+
+    const cleaned = text.replace(/```json|```/g, "").trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch (e: any) {
+      ultimoErro = e.message;
+      // Loga o trecho ao redor do ponto que quebrou — sem isso não há como
+      // diagnosticar o que a IA devolveu de errado.
+      const pos = Number(cleaned.match(/position (\d+)/)?.[1] ?? 0);
+      console.error(
+        `[askClaude] tentativa ${tentativa}: JSON inválido (${e.message}). ` +
+          `Tamanho: ${cleaned.length} chars. Trecho: ...${cleaned.slice(Math.max(0, pos - 200), pos + 200)}...`
+      );
+    }
+  }
+
+  throw new Error(
+    "A IA devolveu uma resposta em formato inesperado e não foi possível montar o conteúdo. " +
+      `Tente de novo em alguns instantes. (detalhe técnico: ${ultimoErro})`
+  );
 }
