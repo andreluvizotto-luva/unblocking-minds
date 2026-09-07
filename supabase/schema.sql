@@ -268,3 +268,12 @@ alter table public.skill_progress enable row level security;
 -- seja, escolher deixar as próprias aulas sempre mais fáceis. Só o backend
 -- (service_role) lê e escreve nesta tabela agora.
 drop policy if exists "skill_progress: owner read/write" on public.skill_progress;
+
+-- ---------------------------------------------------------------------
+-- Aula retomável: o aluno pode parar no meio ("terminar depois") e voltar
+-- de onde parou. Guarda em qual das cinco habilidades ele estava.
+-- 0 = leitura, 1 = gramática, 2 = escuta, 3 = fala, 4 = escrita.
+-- Idempotente — seguro rodar de novo.
+-- ---------------------------------------------------------------------
+alter table public.sessions
+  add column if not exists current_skill_index integer not null default 0;

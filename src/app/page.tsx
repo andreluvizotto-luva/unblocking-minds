@@ -59,6 +59,11 @@ export default function HomePage() {
   const [log, setLog] = useState<{ skill: string; area: string; note: string }[]>([]);
   const [report, setReport] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  // Aula deixada pela metade, para o aluno retomar de onde parou.
+  const [pending, setPending] = useState<any>(null);
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+  const [confirmandoDescarteInicial, setConfirmandoDescarteInicial] = useState(false);
+  const [saindo, setSaindo] = useState(false);
 
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
   const [nextAchievement, setNextAchievement] = useState<AchievementItem | null>(null);
@@ -80,6 +85,11 @@ export default function HomePage() {
       setStudentName(profile?.name || null);
       setLevel(profile?.default_level || null);
       setCheckingAuth(false);
+
+      fetch("/api/session/pending")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => setPending(d?.pending || null))
+        .catch(() => {});
 
       fetch("/api/profile/gamification")
         .then((r) => (r.ok ? r.json() : null))
@@ -120,13 +130,102 @@ export default function HomePage() {
     }
   }
 
+  // Reconsulta o banco em vez de assumir o estado local: se por algum
+  // motivo houver outra aula em aberto, ela precisa aparecer na hora.
+  async function refreshPending() {
+    const res = await fetch("/api/session/pending")
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    setPending(res?.pending || null);
+  }
+
+  // Retoma a aula que ficou pela metade, no ponto exato onde parou.
+  function resumeSession() {
+    if (!pending) return;
+    setSessionId(pending.sessionId);
+    setContent(pending.content);
+    setLog(pending.log || []);
+    setSkillIdx(pending.skillIndex || 0);
+    setStage("session");
+  }
+
+  // "Terminar depois": salva o ponto atual e volta para a tela inicial. A
+  // aula continua em aberto e reaparece como pendente na próxima visita.
+  async function finishLater() {
+    if (!sessionId) return;
+    try {
+      await fetch("/api/session/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, skillIndex: skillIdx }),
+      });
+    } catch {
+      // se a gravação falhar, a aula continua em aberto de qualquer forma;
+      // o aluno só volta para o começo dela em vez do ponto exato.
+    }
+    await refreshPending();
+    setStage("setup");
+  }
+
+  // Descarte a partir da tela inicial, sem precisar entrar na aula.
+  async function discardPending() {
+    if (!pending) return;
+    setSaindo(true);
+    try {
+      await fetch("/api/session/discard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: pending.sessionId }),
+      });
+    } catch {
+      // se falhar, a aula segue pendente e o aluno pode tentar de novo
+    }
+    await refreshPending();
+    setConfirmandoDescarteInicial(false);
+    setSaindo(false);
+  }
+
+  // "Sair da aula": descarta tudo o que foi feito nela.
+  async function discardSession() {
+    if (!sessionId) return;
+    setSaindo(true);
+    try {
+      await fetch("/api/session/discard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+    } catch {
+      // mesmo que a exclusão falhe, tiramos o aluno da aula; a aula órfã
+      // no máximo reaparece como pendente depois.
+    }
+    await refreshPending();
+    setSessionId(null);
+    setContent(null);
+    setLog([]);
+    setSkillIdx(0);
+    setConfirmandoSaida(false);
+    setSaindo(false);
+    setStage("setup");
+  }
+
   function addLog(entry: { skill: string; area: string; note: string }) {
     setLog((l) => [...l, entry]);
   }
 
   function nextSkill() {
     if (skillIdx < SKILL_ORDER.length - 1) {
-      setSkillIdx((i) => i + 1);
+      const proximo = skillIdx + 1;
+      setSkillIdx(proximo);
+      // Grava o avanço em segundo plano: assim, mesmo que o aluno feche a
+      // aba sem clicar em "terminar depois", ele volta no ponto certo.
+      if (sessionId) {
+        fetch("/api/session/progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, skillIndex: proximo }),
+        }).catch(() => {});
+      }
     } else {
       generateReport();
     }
@@ -259,7 +358,76 @@ export default function HomePage() {
 
             {error && <div style={{ color: "var(--wine)", fontSize: 13.5, marginBottom: 12 }}>{error}</div>}
 
-            {level ? (
+            {level && pending ? (
+              // Com uma aula em aberto, o caminho principal é retomá-la. Só
+              // depois de terminar ou descartar é que ele começa outra —
+              // evita acumular aulas pela metade.
+              <Card style={{ borderColor: "var(--teal)", background: "#fffdf7" }}>
+                <SectionLabel>Aula para finalizar</SectionLabel>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{pending.topicTitle}</div>
+                <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 14 }}>
+                  Nível {pending.level} · você parou em{" "}
+                  {SKILL_META[SKILL_ORDER[pending.skillIndex || 0]]?.label?.toLowerCase() || "leitura"}
+                </div>
+                <Button onClick={resumeSession} style={{ width: "100%", padding: "13px 0" }}>
+                  Continuar de onde parei
+                </Button>
+                {!confirmandoDescarteInicial ? (
+                  <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 12, textAlign: "center" }}>
+                    Quer começar outra?{" "}
+                    <span
+                      onClick={() => setConfirmandoDescarteInicial(true)}
+                      style={{ color: "var(--wine)", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Descartar esta aula
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+                    <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, marginBottom: 12 }}>
+                      Esta aula e tudo o que você já respondeu nela serão apagados, e ela não vai gerar relatório. Não
+                      há como recuperar depois.
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        onClick={discardPending}
+                        disabled={saindo}
+                        style={{
+                          padding: "9px 16px",
+                          background: "var(--wine)",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 3,
+                          fontFamily: "inherit",
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {saindo ? "Apagando…" : "Sim, apagar"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmandoDescarteInicial(false)}
+                        disabled={saindo}
+                        style={{
+                          padding: "9px 16px",
+                          background: "transparent",
+                          color: "var(--muted)",
+                          border: "1px solid var(--line)",
+                          borderRadius: 3,
+                          fontFamily: "inherit",
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            ) : level ? (
               <Button onClick={startSession} style={{ width: "100%", padding: "13px 0" }}>
                 Começar aula de hoje · nível {level}
               </Button>
@@ -314,6 +482,90 @@ export default function HomePage() {
             {currentSkill === "writing" && (
               <WritingBlock sessionId={sessionId} level={level} data={content.writing} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
             )}
+
+            {/* Sair da aula: guardando o progresso, ou descartando tudo. */}
+            <div style={{ marginTop: 24, paddingTop: 18, borderTop: "1px solid var(--line-on-dark)" }}>
+              {!confirmandoSaida ? (
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                  <button
+                    onClick={finishLater}
+                    style={{
+                      padding: "10px 18px",
+                      background: "transparent",
+                      color: "var(--ink-on-dark)",
+                      border: "1px solid var(--line-on-dark)",
+                      borderRadius: 3,
+                      fontFamily: "inherit",
+                      fontWeight: 600,
+                      fontSize: 13.5,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Terminar depois
+                  </button>
+                  <button
+                    onClick={() => setConfirmandoSaida(true)}
+                    style={{
+                      padding: "10px 18px",
+                      background: "transparent",
+                      color: "var(--muted-on-dark)",
+                      border: "1px solid var(--line-on-dark)",
+                      borderRadius: 3,
+                      fontFamily: "inherit",
+                      fontWeight: 600,
+                      fontSize: 13.5,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Sair da aula
+                  </button>
+                </div>
+              ) : (
+                <Card style={{ borderColor: "var(--wine)" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 6 }}>Sair e perder esta aula?</div>
+                  <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, marginBottom: 14 }}>
+                    Esta aula e tudo o que você já respondeu nela serão apagados, e ela não vai gerar relatório. Não há
+                    como recuperar depois. Se quiser voltar a ela mais tarde, use <strong>Terminar depois</strong>.
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={discardSession}
+                      disabled={saindo}
+                      style={{
+                        padding: "10px 18px",
+                        background: "var(--wine)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 3,
+                        fontFamily: "inherit",
+                        fontWeight: 600,
+                        fontSize: 13.5,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {saindo ? "Saindo…" : "Sim, apagar esta aula"}
+                    </button>
+                    <button
+                      onClick={() => setConfirmandoSaida(false)}
+                      disabled={saindo}
+                      style={{
+                        padding: "10px 18px",
+                        background: "transparent",
+                        color: "var(--muted)",
+                        border: "1px solid var(--line)",
+                        borderRadius: 3,
+                        fontFamily: "inherit",
+                        fontWeight: 600,
+                        fontSize: 13.5,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Continuar na aula
+                    </button>
+                  </div>
+                </Card>
+              )}
+            </div>
           </div>
         )}
 
