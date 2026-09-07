@@ -10,7 +10,7 @@ import { Spark } from "@/components/ui";
 // objetivo deste bloco é só dar ao aluno um retorno claro em português, em
 // vez do erro genérico em inglês que o Supabase devolve.
 const PASSWORD_RULES: { test: (v: string) => boolean; label: string }[] = [
-  { test: (v) => v.length >= 10, label: "pelo menos 10 caracteres" },
+  { test: (v) => v.length >= 8, label: "pelo menos 8 caracteres" },
   { test: (v) => /[a-z]/.test(v), label: "uma letra minúscula" },
   { test: (v) => /[A-Z]/.test(v), label: "uma letra maiúscula" },
   { test: (v) => /[0-9]/.test(v), label: "um número" },
