@@ -48,6 +48,19 @@ function UserIcon({ active }: { active: boolean }) {
   );
 }
 
+function StudentsIcon({ active }: { active: boolean }) {
+  const cor = active ? "var(--ink)" : "var(--muted)";
+  const traco = active ? 2.2 : 1.6;
+  return (
+    <svg width="23" height="23" viewBox="0 0 24 24" fill="none">
+      <circle cx="9" cy="8" r="3" stroke={cor} strokeWidth={traco} fill={active ? "var(--ink)" : "none"} fillOpacity={active ? 0.06 : 0} />
+      <path d="M3 19c1-3 3.2-4.4 6-4.4S14 16 15 19" stroke={cor} strokeWidth={traco} strokeLinecap="round" />
+      <path d="M16 6.4a3 3 0 0 1 0 5.6" stroke={cor} strokeWidth={traco} strokeLinecap="round" />
+      <path d="M17.5 14.8c1.7.6 2.8 1.9 3.5 4.2" stroke={cor} strokeWidth={traco} strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function LogoutIcon() {
   return (
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
@@ -68,9 +81,15 @@ const NAV_ITEMS = [
   { key: "profile", label: "Perfil", path: "/perfil", Icon: UserIcon },
 ];
 
-export function BottomNav({ onSignOut }: { onSignOut?: () => void }) {
+// Item extra, visível apenas para administradores. Fica entre "Praticar" e
+// "Perfil" para não empurrar os itens que todo aluno usa para a ponta.
+const ADMIN_ITEM = { key: "students", label: "Alunos", path: "/admin", Icon: StudentsIcon };
+
+export function BottomNav({ onSignOut, isAdmin = false }: { onSignOut?: () => void; isAdmin?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
+
+  const items = isAdmin ? [NAV_ITEMS[0], ADMIN_ITEM, NAV_ITEMS[1]] : NAV_ITEMS;
 
   return (
     <nav
@@ -88,8 +107,9 @@ export function BottomNav({ onSignOut }: { onSignOut?: () => void }) {
       }}
     >
       <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", alignItems: "stretch" }}>
-        {NAV_ITEMS.map(({ key, label, path, Icon }) => {
-          const active = pathname === path;
+        {items.map(({ key, label, path, Icon }) => {
+          // O detalhe de um aluno (/admin/[id]) também acende o item de gestão.
+          const active = path === "/admin" ? pathname.startsWith("/admin") : pathname === path;
           return (
             <button
               key={key}

@@ -50,6 +50,7 @@ export default function HomePage() {
   const [stage, setStage] = useState<"setup" | "loading" | "session" | "report">("setup");
   const [level, setLevel] = useState<string | null>(null);
   const [studentName, setStudentName] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [topicKind, setTopicKind] = useState("news");
   const [error, setError] = useState("");
 
@@ -79,10 +80,11 @@ export default function HomePage() {
       if (!ok) return;
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, default_level")
+        .select("name, default_level, is_admin")
         .eq("id", data.user.id)
         .single();
       setStudentName(profile?.name || null);
+      setIsAdmin(!!profile?.is_admin);
       setLevel(profile?.default_level || null);
       setCheckingAuth(false);
 
@@ -573,7 +575,7 @@ export default function HomePage() {
           <ReportView loading={reportLoading} report={report} topic={content?.topic} level={level} onRestart={restart} log={log} />
         )}
       </div>
-      <BottomNav onSignOut={signOut} />
+      <BottomNav onSignOut={signOut} isAdmin={isAdmin} />
     </div>
   );
 }

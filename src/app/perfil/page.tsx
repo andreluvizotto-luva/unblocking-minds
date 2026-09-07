@@ -9,19 +9,6 @@ import { BottomNav } from "@/components/BottomNav";
 import { checkAccessOrRedirect } from "@/lib/access-check";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
 
-type AdminOverview = {
-  totalStudents: number;
-  activeLast7Days: number;
-  activeLast30Days: number;
-  totalSessions: number;
-  completedSessions: number;
-  inProgressSessions: number;
-  signupsWithoutFirstSession: number;
-  levelDistribution: Record<string, number>;
-  topicKindDistribution: Record<string, number>;
-  avgScoreBySkill: Record<string, number | null>;
-  topDifficultyAreas: { area: string; count: number }[];
-};
 
 type SessionRow = {
   id: string;
@@ -41,14 +28,6 @@ const SKILL_LABELS: Record<string, string> = {
   writing: "Escrita",
 };
 
-function AdminStat({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div style={{ minWidth: 90 }}>
-      <div style={{ fontSize: 20, fontWeight: 800 }}>{value}</div>
-      <div style={{ fontSize: 10.5, color: "var(--muted)" }}>{label}</div>
-    </div>
-  );
-}
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -73,9 +52,6 @@ export default function PerfilPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
-  const [adminLoading, setAdminLoading] = useState(false);
-  const [adminError, setAdminError] = useState("");
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
@@ -94,19 +70,7 @@ export default function PerfilPage() {
     });
   }, []);
 
-  async function loadAdminOverview() {
-    setAdminLoading(true);
-    setAdminError("");
-    try {
-      const res = await fetch("/api/admin/overview");
-      if (!res.ok) throw new Error("Falha ao carregar o painel de admin");
-      setAdminOverview(await res.json());
-    } catch (e: any) {
-      setAdminError(e.message || "Erro ao carregar o painel de admin");
-    } finally {
-      setAdminLoading(false);
-    }
-  }
+
 
   async function loadAll(userId: string) {
     setLoadingData(true);
@@ -124,7 +88,6 @@ export default function PerfilPage() {
       setWebsite(profile.website || "");
       setAvatarUrl(profile.avatar_url || "");
       setIsAdmin(!!profile.is_admin);
-      if (profile.is_admin) loadAdminOverview();
     }
 
     try {
@@ -226,80 +189,6 @@ export default function PerfilPage() {
           </div>
           <img src="/unblocking-minds-logo-light.png" alt="Unblocking Minds" style={{ height: 26, width: "auto" }} />
         </div>
-
-        {isAdmin && (
-          <Card style={{ marginBottom: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <SectionLabel>Painel de admin</SectionLabel>
-              <Button
-                variant="subtle"
-                style={{ padding: "5px 12px", fontSize: 12 }}
-                onClick={() => router.push("/admin")}
-              >
-                Gerenciar alunos →
-              </Button>
-            </div>
-
-            {adminLoading && <div style={{ fontSize: 13, color: "var(--muted)" }}>Carregando…</div>}
-            {adminError && <div style={{ fontSize: 12.5, color: "var(--wine)" }}>{adminError}</div>}
-
-            {adminOverview && (
-              <>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 14 }}>
-                  <AdminStat label="Alunos" value={adminOverview.totalStudents} />
-                  <AdminStat label="Ativos (7d)" value={adminOverview.activeLast7Days} />
-                  <AdminStat label="Ativos (30d)" value={adminOverview.activeLast30Days} />
-                  <AdminStat label="Aulas concluídas" value={adminOverview.completedSessions} />
-                  <AdminStat label="Em andamento" value={adminOverview.inProgressSessions} />
-                  <AdminStat label="Sem 1ª aula" value={adminOverview.signupsWithoutFirstSession} />
-                </div>
-
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-                  <div style={{ flex: "1 1 220px" }}>
-                    <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 4 }}>Nota média por habilidade</div>
-                    {Object.entries(adminOverview.avgScoreBySkill).map(([k, v]) => (
-                      <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "2px 0" }}>
-                        <span style={{ color: "var(--muted)", textTransform: "capitalize" }}>{k}</span>
-                        <span style={{ fontWeight: 700 }}>{v ?? "—"}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ flex: "1 1 220px" }}>
-                    <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 4 }}>Distribuição por nível</div>
-                    {Object.entries(adminOverview.levelDistribution).map(([k, v]) => (
-                      <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "2px 0" }}>
-                        <span style={{ color: "var(--muted)" }}>{k}</span>
-                        <span style={{ fontWeight: 700 }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {adminOverview.topDifficultyAreas.length > 0 && (
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6 }}>Dificuldades mais recorrentes</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {adminOverview.topDifficultyAreas.slice(0, 6).map((d) => (
-                        <span
-                          key={d.area}
-                          style={{
-                            fontSize: 11.5,
-                            padding: "4px 10px",
-                            borderRadius: 20,
-                            background: "#f5efe0",
-                            color: "var(--ink)",
-                          }}
-                        >
-                          {d.area} · {d.count}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </Card>
-        )}
 
         {(currentStreak > 0 || achievements.some((a) => a.unlocked) || achievements.length > 0) && (
           <Card style={{ marginBottom: 18 }}>
@@ -553,7 +442,7 @@ export default function PerfilPage() {
           </Card>
         )}
       </div>
-      <BottomNav onSignOut={signOut} />
+      <BottomNav onSignOut={signOut} isAdmin={isAdmin} />
     </div>
   );
 }
