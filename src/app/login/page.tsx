@@ -12,6 +12,7 @@ export default function LoginPage() {
   const supabase = supabaseBrowser();
   const [mode, setMode] = useState<"login" | "signup" | "recover">("login");
   const [recoverySent, setRecoverySent] = useState(false);
+  const [signupDone, setSignupDone] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,7 +51,7 @@ export default function LoginPage() {
         options: { data: { name } },
       });
       if (error) setError(error.message);
-      else router.push("/");
+      else setSignupDone(true);
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError(error.message);
@@ -61,6 +62,93 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      {/* Aviso pós-cadastro. Antes o aluno era mandado de volta para o login
+          sem explicação nenhuma, e ficava sem saber que precisava confirmar o
+          e-mail — nem que, depois disso, ainda haveria uma liberação. */}
+      {signupDone && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            background: "rgba(16, 20, 58, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            className="fade-in-up"
+            style={{
+              background: "var(--card)",
+              borderRadius: 8,
+              padding: "30px 26px",
+              width: "100%",
+              maxWidth: 380,
+              textAlign: "center",
+            }}
+          >
+            <Spark size={38} style={{ marginBottom: 12 }} />
+
+            <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 19, fontWeight: 700, marginBottom: 10 }}>
+              Falta só confirmar seu e-mail
+            </div>
+
+            <div style={{ fontSize: 13.5, lineHeight: 1.65, color: "var(--ink)", marginBottom: 16 }}>
+              Enviamos um link de confirmação para <strong>{email}</strong>. Abra o e-mail e clique no link para ativar
+              sua conta. Se não aparecer em alguns minutos, confira a caixa de spam.
+            </div>
+
+            <div
+              style={{
+                background: "#fbf8f1",
+                borderRadius: 8,
+                padding: "12px 14px",
+                fontSize: 12.5,
+                lineHeight: 1.6,
+                color: "var(--muted)",
+                textAlign: "left",
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ marginBottom: 8 }}>
+                <strong style={{ color: "var(--ink)" }}>Abra no mesmo navegador</strong> em que você se cadastrou. Assim
+                você já entra direto, sem precisar digitar a senha de novo.
+              </div>
+              <div>
+                <strong style={{ color: "var(--ink)" }}>Depois de confirmar</strong>, sua conta ainda passa por uma
+                liberação da administração do +Unblocking. Você recebe acesso assim que isso acontecer.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSignupDone(false);
+                setMode("login");
+                setPassword("");
+                setName("");
+              }}
+              style={{
+                width: "100%",
+                padding: "11px 0",
+                background: "var(--teal)",
+                color: "var(--ink)",
+                border: "none",
+                borderRadius: 3,
+                fontFamily: "inherit",
+                fontWeight: 600,
+                fontSize: 14.5,
+                cursor: "pointer",
+              }}
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
+      )}
+
       <form
         onSubmit={submit}
         style={{
