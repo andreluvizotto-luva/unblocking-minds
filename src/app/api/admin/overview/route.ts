@@ -84,7 +84,7 @@ export async function GET() {
   const trintaDiasAtras = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data: usoTokens } = await admin
     .from("token_usage")
-    .select("operation, input_tokens, output_tokens, created_at")
+    .select("operation, input_tokens, output_tokens, created_at, session_id")
     .gte("created_at", trintaDiasAtras);
 
   const porOperacao: Record<string, { chamadas: number; entrada: number; saida: number }> = {};
@@ -100,19 +100,27 @@ export async function GET() {
     totalSaida += (linha as any).output_tokens || 0;
   }
 
-  // Aulas concluídas no mesmo período, para dar o custo médio por aula.
-  const aulasConcluidas30 = (sessions || []).filter(
-    (s: any) => s.status === "completed" && s.created_at >= trintaDiasAtras
-  ).length;
+  // Denominador da média: só as aulas que foram efetivamente MEDIDAS, não
+  // todas as concluídas no período. Aulas anteriores ao início da medição
+  // não têm registro de consumo, e incluí-las no divisor jogava a média
+  // artificialmente para baixo — chegou a mostrar 374 tokens por aula
+  // quando a única aula medida havia custado 3.742.
+  //
+  // Uma aula medida e concluída é identificada pela chamada de relatório,
+  // que só acontece ao final.
+  const aulasMedidas = new Set(
+    (usoTokens || [])
+      .filter((l: any) => l.operation === "report_generate" && l.session_id)
+      .map((l: any) => l.session_id)
+  ).size;
 
   const tokenUsage = {
     periodo: "30 dias",
     totalEntrada,
     totalSaida,
     totalChamadas: (usoTokens || []).length,
-    aulasConcluidas: aulasConcluidas30,
-    mediaPorAula:
-      aulasConcluidas30 > 0 ? Math.round((totalEntrada + totalSaida) / aulasConcluidas30) : null,
+    aulasConcluidas: aulasMedidas,
+    mediaPorAula: aulasMedidas > 0 ? Math.round((totalEntrada + totalSaida) / aulasMedidas) : null,
     porOperacao: Object.entries(porOperacao)
       .map(([operacao, v]) => ({ operacao, ...v, total: v.entrada + v.saida }))
       .sort((a, b) => b.total - a.total),

@@ -304,7 +304,10 @@ export default function AdminPage() {
                     <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700 }}>
                       {overview.tokenUsage.mediaPorAula ? milhares(overview.tokenUsage.mediaPorAula) : "—"}
                     </div>
-                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>média por aula concluída</div>
+                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>
+                      média por aula medida
+                      {overview.tokenUsage.aulasConcluidas > 0 && ` (${overview.tokenUsage.aulasConcluidas})`}
+                    </div>
                   </div>
                   <div>
                     <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700 }}>
