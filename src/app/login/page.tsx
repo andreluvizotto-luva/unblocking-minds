@@ -4,23 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { Spark } from "@/components/ui";
+import { PASSWORD_RULES, mensagemDePendencias } from "@/lib/password-rules";
 
-// Espelha a política de senha configurada no painel do Supabase. A validação
-// que vale é sempre a do servidor (esta aqui é burlável pelo console) — o
-// objetivo deste bloco é só dar ao aluno um retorno claro em português, em
-// vez do erro genérico em inglês que o Supabase devolve.
-const PASSWORD_RULES: { test: (v: string) => boolean; label: string }[] = [
-  { test: (v) => v.length >= 8, label: "pelo menos 8 caracteres" },
-  { test: (v) => /[a-z]/.test(v), label: "uma letra minúscula" },
-  { test: (v) => /[A-Z]/.test(v), label: "uma letra maiúscula" },
-  { test: (v) => /[0-9]/.test(v), label: "um número" },
-  { test: (v) => /[^A-Za-z0-9]/.test(v), label: "um símbolo (ex: ! @ # $)" },
-];
 
 export default function LoginPage() {
   const router = useRouter();
   const supabase = supabaseBrowser();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "recover">("login");
+  const [recoverySent, setRecoverySent] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,10 +22,25 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    if (mode === "recover") {
+      // redirectTo precisa estar na lista de Redirect URLs do Supabase.
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      });
+      // Mesmo quando o e-mail não existe, confirmamos do mesmo jeito: dizer
+      // "esta conta não existe" entregaria a quem está de fora quais e-mails
+      // têm cadastro aqui.
+      if (error) setError(error.message);
+      else setRecoverySent(true);
+      setLoading(false);
+      return;
+    }
+
     if (mode === "signup") {
-      const faltando = PASSWORD_RULES.filter((r) => !r.test(password));
-      if (faltando.length > 0) {
-        setError(`Sua senha precisa ter ${faltando.map((r) => r.label).join(", ")}.`);
+      const pendencias = mensagemDePendencias(password);
+      if (pendencias) {
+        setError(pendencias);
         setLoading(false);
         return;
       }
@@ -86,8 +92,20 @@ export default function LoginPage() {
           <Spark size={14} style={{ marginTop: -12 }} />
         </div>
         <div style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: "var(--mustard)", marginBottom: 20, textAlign: "center" }}>
-          {mode === "login" ? "Entre para continuar sua prática" : "Crie sua conta para começar"}
+          {mode === "login" && "Entre para continuar sua prática"}
+          {mode === "signup" && "Crie sua conta para começar"}
+          {mode === "recover" && "Vamos recuperar seu acesso"}
         </div>
+
+        {mode === "recover" && recoverySent && (
+          <div style={{ fontSize: 13.5, lineHeight: 1.7, textAlign: "center" }}>
+            Se houver uma conta com esse e-mail, o link para criar uma senha nova já está a caminho. Confira também a
+            caixa de spam.
+            <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 10 }}>
+              Importante: abra o link no mesmo navegador em que você fez este pedido.
+            </div>
+          </div>
+        )}
 
         {mode === "signup" && (
           <input
@@ -97,6 +115,7 @@ export default function LoginPage() {
             style={inputStyle}
           />
         )}
+        {!recoverySent && (
         <input
           type="email"
           placeholder="E-mail"
@@ -105,6 +124,8 @@ export default function LoginPage() {
           required
           style={inputStyle}
         />
+        )}
+        {mode !== "recover" && (
         <input
           type="password"
           placeholder="Senha"
@@ -114,6 +135,7 @@ export default function LoginPage() {
           minLength={6}
           style={inputStyle}
         />
+        )}
 
         {mode === "signup" && password.length > 0 && (
           <div style={{ fontSize: 12, marginBottom: 10, marginTop: -4, lineHeight: 1.7 }}>
@@ -130,6 +152,7 @@ export default function LoginPage() {
 
         {error && <div style={{ color: "var(--wine)", fontSize: 13, marginBottom: 10 }}>{error}</div>}
 
+        {!recoverySent && (
         <button
           type="submit"
           disabled={loading}
@@ -146,22 +169,53 @@ export default function LoginPage() {
             marginTop: 4,
           }}
         >
-          {loading ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}
+          {loading ? "Aguarde…" : mode === "login" ? "Entrar" : mode === "recover" ? "Enviar link de recuperação" : "Criar conta"}
         </button>
+        )}
 
-        <div style={{ textAlign: "center", fontSize: 13, marginTop: 14 }}>
-          {mode === "login" ? (
-            <span>
-              Não tem conta?{" "}
-              <a onClick={() => setMode("signup")} style={{ color: "var(--teal)", cursor: "pointer" }}>
-                Cadastre-se
-              </a>
-            </span>
-          ) : (
+        <div style={{ textAlign: "center", fontSize: 13, marginTop: 14, lineHeight: 1.9 }}>
+          {mode === "login" && (
+            <>
+              <div>
+                Não tem conta?{" "}
+                <a onClick={() => setMode("signup")} style={{ color: "var(--teal)", cursor: "pointer" }}>
+                  Cadastre-se
+                </a>
+              </div>
+              <div>
+                <a
+                  onClick={() => {
+                    setMode("recover");
+                    setError("");
+                  }}
+                  style={{ color: "var(--muted)", cursor: "pointer", fontSize: 12.5 }}
+                >
+                  Esqueci minha senha
+                </a>
+              </div>
+            </>
+          )}
+
+          {mode === "signup" && (
             <span>
               Já tem conta?{" "}
               <a onClick={() => setMode("login")} style={{ color: "var(--teal)", cursor: "pointer" }}>
                 Entrar
+              </a>
+            </span>
+          )}
+
+          {mode === "recover" && (
+            <span>
+              <a
+                onClick={() => {
+                  setMode("login");
+                  setRecoverySent(false);
+                  setError("");
+                }}
+                style={{ color: "var(--teal)", cursor: "pointer" }}
+              >
+                Voltar para o login
               </a>
             </span>
           )}
