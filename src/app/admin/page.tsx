@@ -19,6 +19,7 @@ type Overview = {
   topDifficultyAreas: { area: string; count: number }[];
   tokenUsage: {
     periodo: string;
+    custoDeUmaAula: number;
     totalEntrada: number;
     totalSaida: number;
     totalChamadas: number;
@@ -302,10 +303,16 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700 }}>
+                      {milhares(overview.tokenUsage.custoDeUmaAula)}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>custo de uma aula completa</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700 }}>
                       {overview.tokenUsage.mediaPorAula ? milhares(overview.tokenUsage.mediaPorAula) : "—"}
                     </div>
                     <div style={{ fontSize: 11.5, color: "var(--muted)" }}>
-                      média por aula medida
+                      gasto por aula concluída
                       {overview.tokenUsage.aulasConcluidas > 0 && ` (${overview.tokenUsage.aulasConcluidas})`}
                     </div>
                   </div>
@@ -316,6 +323,28 @@ export default function AdminPage() {
                     <div style={{ fontSize: 11.5, color: "var(--muted)" }}>chamadas à IA</div>
                   </div>
                 </div>
+
+                {overview.tokenUsage.mediaPorAula != null &&
+                  overview.tokenUsage.mediaPorAula > overview.tokenUsage.custoDeUmaAula * 1.2 && (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        lineHeight: 1.6,
+                        color: "var(--muted)",
+                        background: "#fbf8f1",
+                        borderRadius: 8,
+                        padding: "10px 12px",
+                        marginBottom: 14,
+                      }}
+                    >
+                      O gasto por aula concluída está{" "}
+                      <strong style={{ color: "var(--ink)" }}>
+                        {Math.round((overview.tokenUsage.mediaPorAula / overview.tokenUsage.custoDeUmaAula) * 10) / 10}x
+                      </strong>{" "}
+                      acima do custo de uma aula. A diferença é o que se gasta gerando aulas que o aluno abandona antes
+                      de terminar.
+                    </div>
+                  )}
 
                 <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6 }}>
                   Por operação — a saída costuma custar bem mais caro que a entrada

@@ -114,8 +114,19 @@ export async function GET() {
       .map((l: any) => l.session_id)
   ).size;
 
+  // Custo de UMA aula completa: uma chamada de cada operação, usando a média
+  // por chamada. É o número que responde "quanto custa uma aula", diferente
+  // do gasto total dividido pelas aulas concluídas — que inclui as aulas
+  // geradas e abandonadas no meio. A diferença entre os dois é justamente o
+  // desperdício com abandono, e é essa distância que interessa acompanhar.
+  const custoDeUmaAula = Object.values(porOperacao).reduce(
+    (soma, op) => soma + (op.chamadas > 0 ? (op.entrada + op.saida) / op.chamadas : 0),
+    0
+  );
+
   const tokenUsage = {
     periodo: "30 dias",
+    custoDeUmaAula: Math.round(custoDeUmaAula),
     totalEntrada,
     totalSaida,
     totalChamadas: (usoTokens || []).length,
