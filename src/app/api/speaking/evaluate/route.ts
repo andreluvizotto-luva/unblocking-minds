@@ -31,7 +31,11 @@ Responda apenas o JSON.`;
 
   let feedback;
   try {
-    feedback = await askClaude(prompt, UNBLOCKING_VOICE_SYSTEM_PROMPT);
+    feedback = await askClaude(prompt, UNBLOCKING_VOICE_SYSTEM_PROMPT, {
+      operation: "speaking_evaluate",
+      userId: user.id,
+      sessionId,
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Falha ao avaliar fala" }, { status: 502 });
   }

@@ -277,3 +277,35 @@ drop policy if exists "skill_progress: owner read/write" on public.skill_progres
 -- ---------------------------------------------------------------------
 alter table public.sessions
   add column if not exists current_skill_index integer not null default 0;
+
+-- ---------------------------------------------------------------------
+-- Consumo de tokens das chamadas à API da Claude. A resposta da API traz
+-- o número exato de tokens de entrada e saída; esta tabela guarda isso
+-- para o painel mostrar custo real por operação e por aluno.
+--
+-- Visibilidade exclusiva do admin: sem policy de RLS e sem privilégios
+-- para anon/authenticated, só o backend (service_role) acessa. Mesmo
+-- padrão de skill_progress e user_achievements.
+--
+-- O "on delete set null" é proposital, ao contrário do cascade das outras
+-- tabelas: o custo de uma chamada já foi pago e não deixa de ter existido
+-- quando o aluno é apagado ou a aula é descartada.
+-- Idempotente — seguro rodar de novo.
+-- ---------------------------------------------------------------------
+create table if not exists public.token_usage (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users (id) on delete set null,
+  session_id uuid references public.sessions (id) on delete set null,
+  operation text not null,
+  model text,
+  input_tokens integer not null default 0,
+  output_tokens integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists token_usage_created_at_idx on public.token_usage (created_at desc);
+create index if not exists token_usage_operation_idx on public.token_usage (operation);
+create index if not exists token_usage_user_id_idx on public.token_usage (user_id);
+
+alter table public.token_usage enable row level security;
+revoke all privileges on table public.token_usage from anon, authenticated;

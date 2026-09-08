@@ -17,7 +17,27 @@ type Overview = {
   topicKindDistribution: Record<string, number>;
   avgScoreBySkill: Record<string, number | null>;
   topDifficultyAreas: { area: string; count: number }[];
+  tokenUsage: {
+    periodo: string;
+    totalEntrada: number;
+    totalSaida: number;
+    totalChamadas: number;
+    aulasConcluidas: number;
+    mediaPorAula: number | null;
+    porOperacao: { operacao: string; chamadas: number; entrada: number; saida: number; total: number }[];
+  } | null;
 };
+
+const OPERACAO_LABELS: Record<string, string> = {
+  session_generate: "Gerar aula",
+  report_generate: "Gerar relatório",
+  speaking_evaluate: "Avaliar fala",
+  writing_evaluate: "Corrigir escrita",
+};
+
+function milhares(n: number) {
+  return n.toLocaleString("pt-BR");
+}
 
 type Student = {
   id: string;
@@ -266,6 +286,56 @@ export default function AdminPage() {
                     </span>
                   ))}
                 </div>
+              </Card>
+            )}
+
+            {overview.tokenUsage && overview.tokenUsage.totalChamadas > 0 && (
+              <Card style={{ marginBottom: 16 }}>
+                <SectionLabel>Consumo de tokens · últimos {overview.tokenUsage.periodo}</SectionLabel>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 22, marginBottom: 16 }}>
+                  <div>
+                    <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700 }}>
+                      {milhares(overview.tokenUsage.totalEntrada + overview.tokenUsage.totalSaida)}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>tokens no total</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700 }}>
+                      {overview.tokenUsage.mediaPorAula ? milhares(overview.tokenUsage.mediaPorAula) : "—"}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>média por aula concluída</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700 }}>
+                      {overview.tokenUsage.totalChamadas}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>chamadas à IA</div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6 }}>
+                  Por operação — a saída costuma custar bem mais caro que a entrada
+                </div>
+                {overview.tokenUsage.porOperacao.map((op) => {
+                  const maior = overview.tokenUsage!.porOperacao[0]?.total || 1;
+                  return (
+                    <div key={op.operacao} style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                        <span>
+                          {OPERACAO_LABELS[op.operacao] || op.operacao}{" "}
+                          <span style={{ color: "var(--muted)" }}>· {op.chamadas}x</span>
+                        </span>
+                        <span style={{ color: "var(--muted)" }}>
+                          entrada {milhares(op.entrada)} · saída <strong style={{ color: "var(--ink)" }}>{milhares(op.saida)}</strong>
+                        </span>
+                      </div>
+                      <div style={{ height: 5, background: "var(--line)", borderRadius: 3, overflow: "hidden" }}>
+                        <div style={{ width: `${(op.total / maior) * 100}%`, height: "100%", background: "var(--teal)" }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </Card>
             )}
 

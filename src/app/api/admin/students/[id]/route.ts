@@ -64,12 +64,25 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     .select("skill, difficulty_percent, consecutive_strong")
     .eq("user_id", userId);
 
+  // Consumo de tokens deste aluno, para o admin ver quanto ele custa.
+  const { data: uso } = await admin
+    .from("token_usage")
+    .select("input_tokens, output_tokens")
+    .eq("user_id", userId);
+
+  const tokenUsage = {
+    chamadas: (uso || []).length,
+    entrada: (uso || []).reduce((a: number, l: any) => a + (l.input_tokens || 0), 0),
+    saida: (uso || []).reduce((a: number, l: any) => a + (l.output_tokens || 0), 0),
+  };
+
   return NextResponse.json({
     id: userId,
     email: userData.user.email,
     profile,
     sessions: sessionsWithData,
     skillProgress: skillProgress || [],
+    tokenUsage,
   });
 }
 

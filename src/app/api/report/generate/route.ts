@@ -71,7 +71,11 @@ Responda apenas o JSON.`;
 
   let report;
   try {
-    report = await askClaude(prompt, UNBLOCKING_VOICE_SYSTEM_PROMPT);
+    report = await askClaude(prompt, UNBLOCKING_VOICE_SYSTEM_PROMPT, {
+      operation: "report_generate",
+      userId: user.id,
+      sessionId,
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Falha ao gerar relatório" }, { status: 502 });
   }

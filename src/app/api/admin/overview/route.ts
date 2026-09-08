@@ -79,6 +79,45 @@ export async function GET() {
 
   const signupsWithoutFirstSession = totalStudents - usersWithSessions.size;
 
+  // Consumo de tokens dos últimos 30 dias, agrupado por operação. Serve
+  // para saber onde o custo realmente está, em vez de estimar.
+  const trintaDiasAtras = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: usoTokens } = await admin
+    .from("token_usage")
+    .select("operation, input_tokens, output_tokens, created_at")
+    .gte("created_at", trintaDiasAtras);
+
+  const porOperacao: Record<string, { chamadas: number; entrada: number; saida: number }> = {};
+  let totalEntrada = 0;
+  let totalSaida = 0;
+  for (const linha of usoTokens || []) {
+    const op = (linha as any).operation || "outro";
+    porOperacao[op] ||= { chamadas: 0, entrada: 0, saida: 0 };
+    porOperacao[op].chamadas += 1;
+    porOperacao[op].entrada += (linha as any).input_tokens || 0;
+    porOperacao[op].saida += (linha as any).output_tokens || 0;
+    totalEntrada += (linha as any).input_tokens || 0;
+    totalSaida += (linha as any).output_tokens || 0;
+  }
+
+  // Aulas concluídas no mesmo período, para dar o custo médio por aula.
+  const aulasConcluidas30 = (sessions || []).filter(
+    (s: any) => s.status === "completed" && s.created_at >= trintaDiasAtras
+  ).length;
+
+  const tokenUsage = {
+    periodo: "30 dias",
+    totalEntrada,
+    totalSaida,
+    totalChamadas: (usoTokens || []).length,
+    aulasConcluidas: aulasConcluidas30,
+    mediaPorAula:
+      aulasConcluidas30 > 0 ? Math.round((totalEntrada + totalSaida) / aulasConcluidas30) : null,
+    porOperacao: Object.entries(porOperacao)
+      .map(([operacao, v]) => ({ operacao, ...v, total: v.entrada + v.saida }))
+      .sort((a, b) => b.total - a.total),
+  };
+
   return NextResponse.json({
     totalStudents,
     activeLast7Days: activeUserIds7.size,
@@ -91,5 +130,6 @@ export async function GET() {
     topicKindDistribution,
     avgScoreBySkill,
     topDifficultyAreas,
+    tokenUsage,
   });
 }

@@ -39,6 +39,7 @@ type Detail = {
   };
   sessions: SessionRow[];
   skillProgress: { skill: string; difficulty_percent: number; consecutive_strong: number }[];
+  tokenUsage: { chamadas: number; entrada: number; saida: number } | null;
 };
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -472,6 +473,32 @@ export default function AdminStudentPage() {
                 ))}
               </div>
             </Card>
+
+            {detail.tokenUsage && detail.tokenUsage.chamadas > 0 && (
+              <Card style={{ marginTop: 16 }}>
+                <SectionLabel>Consumo de IA deste aluno</SectionLabel>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 22 }}>
+                  <div>
+                    <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 19, fontWeight: 700 }}>
+                      {(detail.tokenUsage.entrada + detail.tokenUsage.saida).toLocaleString("pt-BR")}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>tokens no total</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 19, fontWeight: 700 }}>
+                      {detail.tokenUsage.chamadas}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>chamadas à IA</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 19, fontWeight: 700 }}>
+                      {detail.tokenUsage.saida.toLocaleString("pt-BR")}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--muted)" }}>de saída (a parte cara)</div>
+                  </div>
+                </div>
+              </Card>
+            )}
 
             <Card style={{ marginTop: 16, borderColor: "var(--wine)" }}>
               <SectionLabel>Apagar aluno</SectionLabel>

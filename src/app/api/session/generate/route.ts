@@ -166,7 +166,12 @@ Responda apenas o JSON.`;
 
   let generated;
   try {
-    generated = await askClaude(prompt);
+    // sessionId fica nulo aqui de propósito: a aula só é gravada depois
+    // desta chamada. A atribuição desse consumo é pelo aluno e pelo horário.
+    generated = await askClaude(prompt, undefined, {
+      operation: "session_generate",
+      userId: user.id,
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Falha ao gerar aula" }, { status: 502 });
   }
