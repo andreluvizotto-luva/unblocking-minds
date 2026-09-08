@@ -51,7 +51,11 @@ export async function POST(req: Request) {
     .select("topic_title, topic_kind")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-    .limit(40);
+    // 20 títulos, não 40: a lista existe só para evitar repetir tema, e vai
+    // inteira no prompt a cada geração. Vinte aulas de memória já cobrem com
+    // folga o horizonte em que uma repetição seria percebida, pela metade do
+    // custo de entrada.
+    .limit(20);
 
   const usedTopics = (pastSessions || [])
     .map((s: any) => s.topic_title)
