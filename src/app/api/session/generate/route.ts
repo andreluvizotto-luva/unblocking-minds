@@ -24,9 +24,22 @@ export async function POST(req: Request) {
   // foi avaliado, e garante que a rota não confie em nada vindo do cliente.
   const { data: levelProfile } = await supabase
     .from("profiles")
-    .select("default_level")
+    .select("default_level, is_active")
     .eq("id", user.id)
     .single();
+
+  // A aprovação de conta (is_active) até agora só era checada no front-end
+  // (checkAccessOrRedirect), o que deixava esta rota — a que efetivamente
+  // gasta créditos de Claude/OpenAI — aberta para qualquer aluno cadastrado
+  // e não aprovado que chamasse a API direto. Checagem repetida aqui, no
+  // servidor, é a que realmente protege o custo.
+  if (levelProfile?.is_active === false) {
+    return NextResponse.json(
+      { error: "Sua conta ainda não foi liberada por um administrador. Fale com a administração do +Unblocking." },
+      { status: 403 }
+    );
+  }
+
   const level = levelProfile?.default_level;
   if (!level) {
     return NextResponse.json(
