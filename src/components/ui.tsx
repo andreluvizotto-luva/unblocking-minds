@@ -336,7 +336,7 @@ export function useCloudSpeech() {
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
-  const attachFromText = useCallback((text: string, voiceSeed?: string, voice?: string) => {
+  const attachFromText = useCallback((text: string, voiceSeed?: string, voice?: string, sessionId?: string, variant?: string) => {
     let cancelled = false;
     setReady(false);
     setLoadError(false);
@@ -348,7 +348,10 @@ export function useCloudSpeech() {
         const res = await fetch("/api/tts/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, voiceSeed, voice }),
+          // sessionId + variant deixam o servidor cachear este áudio no
+          // Storage: sem eles (aula ainda sem id, por exemplo), a rota gera
+          // normalmente sem guardar nada.
+          body: JSON.stringify({ text, voiceSeed, voice, sessionId, variant }),
         });
         if (!res.ok) throw new Error("tts failed");
         const blob = await res.blob();

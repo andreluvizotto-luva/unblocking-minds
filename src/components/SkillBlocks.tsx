@@ -319,13 +319,13 @@ export function ListeningBlock({
   // Safari/iOS para permitir a reprodução.
   useEffect(() => {
     if (!textoDoAudioA) return;
-    const cleanup = playerA.attachFromText(textoDoAudioA, sessionId + "-a", voiceA);
+    const cleanup = playerA.attachFromText(textoDoAudioA, sessionId + "-a", voiceA, sessionId, "a");
     return cleanup;
   }, [data, sessionId, retryTick]);
 
   useEffect(() => {
     if (!isComparison || !textoDoAudioB) return;
-    const cleanup = playerB.attachFromText(textoDoAudioB, sessionId + "-b", voiceB);
+    const cleanup = playerB.attachFromText(textoDoAudioB, sessionId + "-b", voiceB, sessionId, "b");
     return cleanup;
   }, [data, sessionId, retryTick, isComparison]);
 
