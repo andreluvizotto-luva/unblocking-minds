@@ -36,6 +36,13 @@ export const UNBLOCKING_VOICE_SYSTEM_PROMPT =
 // adaptativa acumulada).
 const MAX_TOKENS = 8000;
 
+// Modelo padrão, usado por session_generate e report_generate (tarefas de
+// gerar conteúdo extenso). writing_evaluate e speaking_evaluate pedem um
+// JSON bem menor (poucos campos de nota/observação curta), então usam um
+// modelo de tier mais barato — ver HAIKU_MODEL nas rotas que chamam askClaude.
+const SONNET_MODEL = "claude-sonnet-4-6";
+export const HAIKU_MODEL = "claude-haiku-4-5-20251001";
+
 // Contexto para registrar quanto cada operação consumiu. Opcional: sem ele
 // a chamada funciona igual, só não é contabilizada.
 export type UsoMeta = {
@@ -67,7 +74,7 @@ async function registrarUso(meta: UsoMeta | undefined, data: any) {
   }
 }
 
-async function callClaude(prompt: string, system: string, apiKey: string, meta?: UsoMeta) {
+async function callClaude(prompt: string, system: string, apiKey: string, model: string, meta?: UsoMeta) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -76,7 +83,7 @@ async function callClaude(prompt: string, system: string, apiKey: string, meta?:
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model,
       max_tokens: MAX_TOKENS,
       // O system prompt é o mesmo texto em toda chamada de uma mesma
       // operação (UNBLOCKING_VOICE_SYSTEM_PROMPT se repete em 3 das 4
@@ -105,7 +112,7 @@ async function callClaude(prompt: string, system: string, apiKey: string, meta?:
   return { text, stopReason: data.stop_reason as string | undefined };
 }
 
-export async function askClaude(prompt: string, system?: string, meta?: UsoMeta) {
+export async function askClaude(prompt: string, system?: string, meta?: UsoMeta, model: string = SONNET_MODEL) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error("ANTHROPIC_API_KEY não configurada no servidor (.env.local)");
@@ -118,7 +125,7 @@ export async function askClaude(prompt: string, system?: string, meta?: UsoMeta)
   // por acaso (uma aspa não escapada, uma vírgula faltando) normalmente
   // desaparece ao repetir. Só falha de verdade se as duas quebrarem.
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
-    const { text, stopReason } = await callClaude(prompt, systemPrompt, apiKey, meta);
+    const { text, stopReason } = await callClaude(prompt, systemPrompt, apiKey, model, meta);
 
     if (stopReason === "max_tokens") {
       ultimoErro = `resposta truncada no limite de ${MAX_TOKENS} tokens`;

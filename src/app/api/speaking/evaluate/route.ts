@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { askClaude, UNBLOCKING_VOICE_SYSTEM_PROMPT } from "@/lib/claude";
+import { askClaude, UNBLOCKING_VOICE_SYSTEM_PROMPT, HAIKU_MODEL } from "@/lib/claude";
 import { supabaseServer } from "@/lib/supabase-server";
 
 export async function POST(req: Request) {
@@ -31,11 +31,15 @@ Responda apenas o JSON.`;
 
   let feedback;
   try {
-    feedback = await askClaude(prompt, UNBLOCKING_VOICE_SYSTEM_PROMPT, {
-      operation: "speaking_evaluate",
-      userId: user.id,
-      sessionId,
-    });
+    // Avaliação de uma transcrição curta é uma tarefa mais simples que gerar
+    // uma aula inteira — usa o modelo Haiku (bem mais barato) em vez do
+    // Sonnet padrão de askClaude.
+    feedback = await askClaude(
+      prompt,
+      UNBLOCKING_VOICE_SYSTEM_PROMPT,
+      { operation: "speaking_evaluate", userId: user.id, sessionId },
+      HAIKU_MODEL
+    );
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Falha ao avaliar fala" }, { status: 502 });
   }
