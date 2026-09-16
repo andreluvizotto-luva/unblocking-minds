@@ -64,11 +64,11 @@ export async function POST(req: Request) {
     .select("topic_title, topic_kind")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-    // 20 títulos, não 40: a lista existe só para evitar repetir tema, e vai
-    // inteira no prompt a cada geração. Vinte aulas de memória já cobrem com
-    // folga o horizonte em que uma repetição seria percebida, pela metade do
-    // custo de entrada.
-    .limit(20);
+    // 10 títulos, não 20: a lista existe só para evitar repetir tema, e vai
+    // inteira no prompt a cada geração. Dez aulas de memória já cobrem a
+    // janela realista em que o aluno notaria uma repetição (1-2 semanas de
+    // prática diária), por metade do custo de entrada da versão anterior.
+    .limit(10);
 
   const usedTopics = (pastSessions || [])
     .map((s: any) => s.topic_title)
