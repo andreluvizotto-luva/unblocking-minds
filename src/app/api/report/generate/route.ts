@@ -90,9 +90,34 @@ Responda apenas o JSON.`;
   });
 
   if (insertErr) {
+    // "23505" = violação da constraint unique(session_id): o relatório desta
+    // aula já existe, o que acontece se o aluno clicar duas vezes em "Ver
+    // relatório" ou a requisição for reenviada por retry de rede. Não é uma
+    // falha real — o relatório já foi gerado antes, então buscamos e
+    // devolvemos ele em vez de expor o erro cru do Postgres para o aluno
+    // (CLAUDE.md: aluno nunca vê erro de banco/nome de tabela).
+    if (insertErr.code === "23505") {
+      const { data: existingReport } = await admin
+        .from("reports")
+        .select("summary, by_skill, scores, recurring_difficulties, recommendations")
+        .eq("session_id", sessionId)
+        .single();
+      if (existingReport) {
+        return NextResponse.json({
+          summary: existingReport.summary,
+          bySkill: existingReport.by_skill,
+          scores: existingReport.scores,
+          recurringDifficulties: existingReport.recurring_difficulties,
+          recommendations: existingReport.recommendations,
+          streak: null,
+          unlockedAchievements: [],
+          skillDifficulty: null,
+        });
+      }
+    }
     console.error("Falha ao salvar relatório no Supabase:", insertErr);
     return NextResponse.json(
-      { error: `Não foi possível salvar o relatório no banco: ${insertErr.message}` },
+      { error: "Não foi possível salvar o relatório da sua aula. Tente novamente em alguns instantes." },
       { status: 500 }
     );
   }
