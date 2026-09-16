@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
 import { askClaude, UNBLOCKING_VOICE_SYSTEM_PROMPT, HAIKU_MODEL } from "@/lib/claude";
 import { supabaseServer } from "@/lib/supabase-server";
+import { requireActiveUser } from "@/lib/require-active-user";
 
 export async function POST(req: Request) {
   const { sessionId, level, prompt: taskPrompt, text } = await req.json();
 
   const supabase = supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  const check = await requireActiveUser(supabase);
+  if (check.ok === false) {
+    return NextResponse.json({ error: check.error }, { status: check.status });
   }
 
   const prompt = `Um estudante de inglês nível CEFR ${level} recebeu esta consigna de escrita: "${taskPrompt}"
@@ -37,7 +36,7 @@ Responda apenas o JSON.`;
     feedback = await askClaude(
       prompt,
       UNBLOCKING_VOICE_SYSTEM_PROMPT,
-      { operation: "writing_evaluate", userId: user.id, sessionId },
+      { operation: "writing_evaluate", userId: check.userId, sessionId },
       HAIKU_MODEL
     );
   } catch (e: any) {

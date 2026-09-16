@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabase-server";
+import { requireActiveUser } from "@/lib/require-active-user";
 
 // Transcreve o áudio gravado no bloco de Fala via OpenAI Whisper.
 // Substitui a antiga SpeechRecognition do navegador — que simplesmente não
 // existe em nenhum navegador no iOS — por gravação de áudio (MediaRecorder,
 // suportado em PC, iOS e Android) enviada aqui para virar texto.
 export async function POST(req: Request) {
+  // Diferente das outras rotas que gastam API, esta nunca tinha nenhuma
+  // checagem de autenticação — qualquer um com a URL conseguia transcrever
+  // áudio pela conta da OpenAI do projeto, logado ou não.
+  const check = await requireActiveUser(supabaseServer());
+  if (check.ok === false) {
+    return NextResponse.json({ error: check.error }, { status: check.status });
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

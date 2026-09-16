@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { updateStreakOnCompletion, checkAndUnlockAchievements } from "@/lib/gamification";
 import { updateSkillDifficulty } from "@/lib/skill-difficulty";
+import { requireActiveUser } from "@/lib/require-active-user";
 
 export async function POST(req: Request) {
   const { sessionId } = await req.json();
@@ -12,12 +13,11 @@ export async function POST(req: Request) {
   }
 
   const supabase = supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  const check = await requireActiveUser(supabase);
+  if (check.ok === false) {
+    return NextResponse.json({ error: check.error }, { status: check.status });
   }
+  const userId = check.userId;
 
   // Esta leitura usa a sessão do próprio aluno de propósito: a RLS garante
   // que ele só enxerga as próprias aulas, então se a linha veio, a aula é
@@ -73,7 +73,7 @@ Responda apenas o JSON.`;
   try {
     report = await askClaude(prompt, UNBLOCKING_VOICE_SYSTEM_PROMPT, {
       operation: "report_generate",
-      userId: user.id,
+      userId,
       sessionId,
     });
   } catch (e: any) {
@@ -129,8 +129,8 @@ Responda apenas o JSON.`;
 
   // Atualiza sequência de dias e verifica conquistas. Isso roda depois que
   // a aula já está marcada como concluída, então já entra na contagem.
-  const { currentStreak, longestStreak } = await updateStreakOnCompletion(supabase, user.id);
-  const unlockedAchievements = await checkAndUnlockAchievements(admin, user.id, {
+  const { currentStreak, longestStreak } = await updateStreakOnCompletion(supabase, userId);
+  const unlockedAchievements = await checkAndUnlockAchievements(admin, userId, {
     currentStreak,
     level: session.level,
     overall: typeof report.scores?.overall === "number" ? report.scores.overall : null,
@@ -139,7 +139,7 @@ Responda apenas o JSON.`;
 
   // A cada 10 aulas seguidas avaliadas como "forte" numa habilidade, essa
   // habilidade fica 10% mais desafiadora nas próximas aulas.
-  const skillDifficulty = await updateSkillDifficulty(admin, user.id, report.bySkill || {});
+  const skillDifficulty = await updateSkillDifficulty(admin, userId, report.bySkill || {});
 
   return NextResponse.json({ ...report, streak: { currentStreak, longestStreak }, unlockedAchievements, skillDifficulty });
 }

@@ -3,6 +3,7 @@ import { askClaude } from "@/lib/claude";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getSkillDifficulty } from "@/lib/skill-difficulty";
+import { requireActiveUser } from "@/lib/require-active-user";
 
 export async function POST(req: Request) {
   const { topicKind } = await req.json();
@@ -12,33 +13,16 @@ export async function POST(req: Request) {
   }
 
   const supabase = supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  const check = await requireActiveUser(supabase);
+  if (check.ok === false) {
+    return NextResponse.json({ error: check.error }, { status: check.status });
   }
+  const userId = check.userId;
 
   // O nível não é mais escolhido pelo aluno — é definido pelo admin no
   // perfil dele. Isso evita que o aluno force um nível diferente do que
   // foi avaliado, e garante que a rota não confie em nada vindo do cliente.
-  const { data: levelProfile } = await supabase
-    .from("profiles")
-    .select("default_level, is_active")
-    .eq("id", user.id)
-    .single();
-
-  // A aprovação de conta (is_active) até agora só era checada no front-end
-  // (checkAccessOrRedirect), o que deixava esta rota — a que efetivamente
-  // gasta créditos de Claude/OpenAI — aberta para qualquer aluno cadastrado
-  // e não aprovado que chamasse a API direto. Checagem repetida aqui, no
-  // servidor, é a que realmente protege o custo.
-  if (levelProfile?.is_active === false) {
-    return NextResponse.json(
-      { error: "Sua conta ainda não foi liberada por um administrador. Fale com a administração do +Unblocking." },
-      { status: 403 }
-    );
-  }
+  const { data: levelProfile } = await supabase.from("profiles").select("default_level").eq("id", userId).single();
 
   const level = levelProfile?.default_level;
   if (!level) {
@@ -52,7 +36,7 @@ export async function POST(req: Request) {
   // ficando numa habilidade, mais desafiadora ela fica (ver skill-difficulty.ts).
   // Lida via service_role: skill_progress não tem RLS de aluno (só o
   // servidor e o admin escrevem/leem ali), então usamos a chave admin.
-  const skillDifficulty = await getSkillDifficulty(supabaseAdmin(), user.id);
+  const skillDifficulty = await getSkillDifficulty(supabaseAdmin(), userId);
   const difficultyNote = (skill: string, label: string) => {
     const pct = skillDifficulty[skill] || 0;
     if (!pct) return "";
@@ -62,7 +46,7 @@ export async function POST(req: Request) {
   const { data: pastSessions } = await supabase
     .from("sessions")
     .select("topic_title, topic_kind")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false })
     // 10 títulos, não 20: a lista existe só para evitar repetir tema, e vai
     // inteira no prompt a cada geração. Dez aulas de memória já cobrem a
@@ -183,7 +167,7 @@ Responda apenas o JSON.`;
     // desta chamada. A atribuição desse consumo é pelo aluno e pelo horário.
     generated = await askClaude(prompt, undefined, {
       operation: "session_generate",
-      userId: user.id,
+      userId,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Falha ao gerar aula" }, { status: 502 });
@@ -197,7 +181,7 @@ Responda apenas o JSON.`;
   const { data: session, error } = await supabaseAdmin()
     .from("sessions")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       level,
       topic_kind: topicKind,
       topic_title: generated.topic?.title,
