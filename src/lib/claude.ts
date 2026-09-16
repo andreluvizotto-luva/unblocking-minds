@@ -78,7 +78,13 @@ async function callClaude(prompt: string, system: string, apiKey: string, meta?:
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
       max_tokens: MAX_TOKENS,
-      system,
+      // O system prompt é o mesmo texto em toda chamada de uma mesma
+      // operação (UNBLOCKING_VOICE_SYSTEM_PROMPT se repete em 3 das 4
+      // operações). Marcar como cache_control deixa a Anthropic reaproveitar
+      // esse bloco entre chamadas próximas, cobrando bem menos nas leituras
+      // de cache. Se o bloco for pequeno demais para o mínimo cacheável, a
+      // Anthropic ignora o cache_control e cobra normal — sem risco de piorar.
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: prompt }],
     }),
   });
