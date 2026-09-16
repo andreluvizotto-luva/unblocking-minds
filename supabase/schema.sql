@@ -57,8 +57,20 @@ alter table public.sessions enable row level security;
 alter table public.difficulties enable row level security;
 alter table public.reports enable row level security;
 
-create policy "profiles: owner read/write" on public.profiles
-  for all using (auth.uid() = id) with check (auth.uid() = id);
+-- IMPORTANTE: nunca use "for all" aqui. "for all" cobre insert/delete além
+-- de select/update, e o trigger de baixo (protect_admin_only_profile_fields)
+-- só roda em "before update" — então um "for all" permite que o aluno
+-- contorne a trava inteira deletando e reinserindo a própria linha
+-- (auth.uid() = id vale pra insert/delete também), setando is_admin,
+-- is_active e default_level à vontade nesse insert. Por isso só select e
+-- update têm policy para authenticated; insert de linha nova é feito
+-- exclusivamente pelo trigger handle_new_user (security definer, dono da
+-- tabela, ignora RLS) e delete só pela rota admin (service_role).
+create policy "profiles: owner select" on public.profiles
+  for select using (auth.uid() = id);
+
+create policy "profiles: owner update" on public.profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);
 
 -- Trava de segurança: mesmo com a policy acima permitindo o aluno editar
 -- a própria linha (necessário para nome/bio/foto e para o próprio app
