@@ -135,7 +135,7 @@ export function ReadingBlock({
       {data.questions.map((q: any, i: number) => (
         <Card key={i} style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{q.q}</div>
-          {q.options.map((opt: string, oi: number) => {
+          {(q.options || []).map((opt: string, oi: number) => {
             const isChosen = answers[i] === oi;
             const isCorrect = checked && oi === q.answerIndex;
             const isWrongChosen = checked && isChosen && oi !== q.answerIndex;
@@ -223,7 +223,7 @@ export function GrammarBlock({
                 filled={chosen !== undefined ? item.options[chosen] : undefined}
               />
             </div>
-            {item.options.map((opt: string, oi: number) => {
+            {(item.options || []).map((opt: string, oi: number) => {
               const isChosen = answers[i] === oi;
               const isCorrect = checked && oi === item.answerIndex;
               const isWrongChosen = checked && isChosen && oi !== item.answerIndex;
@@ -283,12 +283,21 @@ export function ListeningBlock({
   onNext: () => void;
   isLast: boolean;
 }) {
-  const isComparison = !!data.isComparison;
+  const isComparison = !!data?.isComparison;
+
+  // Tudo o que o bloco renderiza depende destes três campos. Se a aula vier
+  // sem eles (JSON incompleto da geração), a tela ficava completamente em
+  // branco — sem texto, sem perguntas e sem erro. Aqui eles são lidos com
+  // cuidado para que a falta vire uma mensagem explícita, não um vazio.
+  const questions: any[] = Array.isArray(data?.questions) ? data.questions : [];
+  const textoDoAudioA = isComparison ? data?.textA?.text : data?.text;
+  const textoDoAudioB = isComparison ? data?.textB?.text : undefined;
+  const conteudoIncompleto = !textoDoAudioA || (isComparison && !textoDoAudioB) || questions.length === 0;
 
   // Quando há 2 áudios (modo comparativo), as vozes precisam ser sempre
   // diferentes entre si e coerentes com o gênero de cada personagem.
   const { voiceA, voiceB } = isComparison
-    ? pickComparisonVoices(data.textA?.gender, data.textB?.gender, sessionId)
+    ? pickComparisonVoices(data?.textA?.gender, data?.textB?.gender, sessionId)
     : { voiceA: undefined, voiceB: undefined };
 
   // Modo normal usa só o player A (com um único áudio). Modo comparativo
@@ -303,27 +312,33 @@ export function ListeningBlock({
   const [retryTick, setRetryTick] = useState(0);
   const [gapAnswers, setGapAnswers] = useState<Record<number, number>>({});
   const [gapChecked, setGapChecked] = useState(false);
-  const gapFill: any[] = data.gapFill || [];
+  const gapFill: any[] = Array.isArray(data?.gapFill) ? data.gapFill : [];
 
   // Busca o áudio (gerado no servidor via OpenAI TTS) assim que o bloco
   // monta, para que o play() do usuário seja síncrono — exigência do
   // Safari/iOS para permitir a reprodução.
   useEffect(() => {
-    const cleanup = playerA.attachFromText(isComparison ? data.textA?.text : data.text, sessionId + "-a", voiceA);
+    if (!textoDoAudioA) return;
+    const cleanup = playerA.attachFromText(textoDoAudioA, sessionId + "-a", voiceA);
     return cleanup;
   }, [data, sessionId, retryTick]);
 
   useEffect(() => {
-    if (!isComparison) return;
-    const cleanup = playerB.attachFromText(data.textB?.text, sessionId + "-b", voiceB);
+    if (!isComparison || !textoDoAudioB) return;
+    const cleanup = playerB.attachFromText(textoDoAudioB, sessionId + "-b", voiceB);
     return cleanup;
   }, [data, sessionId, retryTick, isComparison]);
 
-  const played = isComparison ? playedA && playedB : playedA;
+  // Se o áudio não vier (falha da API de voz, rede caindo, cota da OpenAI),
+  // as perguntas ficavam escondidas para sempre e o aluno via uma tela sem
+  // nada. Nesse caso liberamos o resto do bloco mesmo assim: melhor uma
+  // Escuta sem áudio, com aviso, do que uma aula travada.
+  const falhouOAudio = playerA.loadError || (isComparison && playerB.loadError);
+  const played = (isComparison ? playedA && playedB : playedA) || falhouOAudio;
 
   async function check() {
-    for (let i = 0; i < data.questions.length; i++) {
-      const q = data.questions[i];
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
       if (answers[i] !== q.answerIndex) {
         const note = `Errou: "${q.q}"`;
         onDifficulty({ skill: "Escuta", area: q.area || "compreensão auditiva", note });
@@ -395,6 +410,23 @@ export function ListeningBlock({
     );
   }
 
+  // Conteúdo incompleto: em vez da tela em branco de antes, o aluno vê o que
+  // aconteceu e consegue seguir para a próxima habilidade sem perder a aula.
+  if (conteudoIncompleto) {
+    return (
+      <div>
+        <Card style={{ marginBottom: 14 }}>
+          <SectionLabel>Escuta indisponível nesta aula</SectionLabel>
+          <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+            O conteúdo de escuta desta aula não veio completo na geração. Nada do que você já fez foi
+            perdido — siga para a próxima habilidade e, na próxima aula, a escuta volta ao normal.
+          </div>
+        </Card>
+        <NextButton onNext={onNext} isLast={isLast} />
+      </div>
+    );
+  }
+
   return (
     <div>
       {isComparison ? (
@@ -408,11 +440,17 @@ export function ListeningBlock({
       ) : (
         <AudioPlayerCard player={playerA} hasPlayed={playedA} onPlayed={() => setPlayedA(true)} />
       )}
+      {falhouOAudio && (
+        <div style={{ fontSize: 12.5, color: "var(--muted-on-dark)", marginBottom: 14 }}>
+          O áudio não pôde ser gerado agora. Você pode tentar de novo no botão acima ou responder as
+          perguntas abaixo assim mesmo para não travar a aula.
+        </div>
+      )}
       {played &&
-        data.questions.map((q: any, i: number) => (
+        questions.map((q: any, i: number) => (
           <Card key={i} style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{q.q}</div>
-            {q.options.map((opt: string, oi: number) => {
+            {(q.options || []).map((opt: string, oi: number) => {
               const isChosen = answers[i] === oi;
               const isCorrect = checked && oi === q.answerIndex;
               const isWrongChosen = checked && isChosen && oi !== q.answerIndex;
@@ -463,7 +501,7 @@ export function ListeningBlock({
                   filled={gapAnswers[i] !== undefined ? item.options[gapAnswers[i]] : undefined}
                 />
               </div>
-              {item.options.map((opt: string, oi: number) => {
+              {(item.options || []).map((opt: string, oi: number) => {
                 const isChosen = gapAnswers[i] === oi;
                 const isCorrect = gapChecked && oi === item.answerIndex;
                 const isWrongChosen = gapChecked && isChosen && oi !== item.answerIndex;
