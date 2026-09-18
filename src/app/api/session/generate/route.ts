@@ -87,11 +87,11 @@ export async function POST(req: Request) {
     "isComparison": true,
     "textA": {"label": "rótulo curto em português para o texto A (ex: 'Resenha 1', 'Ponto de vista de um fã')", "text": "texto em inglês, 70-140 palavras, nível ${level}.${difficultyNote("reading", "Leitura")}"},
     "textB": {"label": "rótulo curto em português para o texto B, contrastando com o A (ex: 'Resenha 2', 'Ponto de vista de um crítico')", "text": "texto em inglês, 70-140 palavras, nível ${level}, sobre o MESMO tema do texto A mas com um ponto de vista, ênfase, opinião ou detalhes diferentes — para gerar diferenças reais de comparar.${difficultyNote("reading", "Leitura")}"},
-    "questions": [ {"q": "pergunta em inglês", "options": ["a","b","c","d"], "answerIndex": 0, "area": "área específica avaliada, em português, ex: ideia principal, detalhe específico, inferência, comparação de opiniões, vocabulário em contexto"} ] (gere 3 a 4 perguntas; pelo menos 2 delas devem exigir comparar os dois textos — ex: diferenças de opinião, detalhe que só aparece em um deles, tom diferente — e não só entender um texto isolado)
+    "questions": [ {"q": "pergunta em inglês", "options": ["a","b","c","d"], "answerIndex": 0, "area": "área específica avaliada, em português, ex: ideia principal, detalhe específico, inferência, comparação de opiniões, vocabulário em contexto", "explanation": "explicação pedagógica breve em português (1-2 frases), no tom acolhedor da Unblocking Minds: trate o erro como parte natural do aprendizado, explique por que a alternativa certa é certa e o que costuma confundir na errada, sem jargão técnico, sem travessão"} ] (gere 3 a 4 perguntas; pelo menos 2 delas devem exigir comparar os dois textos — ex: diferenças de opinião, detalhe que só aparece em um deles, tom diferente — e não só entender um texto isolado)
   }`
     : `{
     "text": "texto em inglês, 80-180 palavras, vocabulário e complexidade calibrados para o nível ${level}.${difficultyNote("reading", "Leitura")}",
-    "questions": [ {"q": "pergunta em inglês", "options": ["a","b","c","d"], "answerIndex": 0, "area": "área específica avaliada, em português, ex: ideia principal, detalhe específico, inferência, vocabulário em contexto"} ]
+    "questions": [ {"q": "pergunta em inglês", "options": ["a","b","c","d"], "answerIndex": 0, "area": "área específica avaliada, em português, ex: ideia principal, detalhe específico, inferência, vocabulário em contexto", "explanation": "explicação pedagógica breve em português (1-2 frases), no tom acolhedor da Unblocking Minds: trate o erro como parte natural do aprendizado, explique por que a alternativa certa é certa e o que costuma confundir na errada, sem jargão técnico, sem travessão"} ]
   }`;
 
   const listeningSchema = isComparisonLesson
@@ -139,7 +139,8 @@ Gere um objeto JSON com exatamente esta forma:
         "after": "resto da frase em inglês, depois da lacuna (pode ser vazio)",
         "options": ["opção a", "opção b", "opção c", "opção d"],
         "answerIndex": 0,
-        "area": "ponto gramatical específico avaliado nesse item, em português, ex: passado simples, preposições, artigos, comparativos"
+        "area": "ponto gramatical específico avaliado nesse item, em português, ex: passado simples, preposições, artigos, comparativos",
+        "explanation": "explicação pedagógica breve em português (1-2 frases), no tom acolhedor da Unblocking Minds: trate o erro como parte natural do aprendizado, explique por que aquela é a forma correta e o que costuma confundir na errada, sem jargão técnico, sem travessão"
       }
     ] (gere de 4 a 6 itens, cobrindo pontos gramaticais variados e calibrados para o nível ${level}, relacionados ao tema do dia sempre que possível.${difficultyNote("grammar", "Gramática")})
   },

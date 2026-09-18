@@ -82,6 +82,83 @@ async function logDifficultyDirect(sessionId: string, skill: string, area: strin
   await supabase.from("difficulties").insert({ session_id: sessionId, skill, area, note });
 }
 
+// Caixinha de correção pedagógica, mostrada abaixo de uma pergunta/item
+// quando o aluno errou. "text" vem do campo "explanation" gerado junto com
+// a aula (em Leitura e Gramática); aulas geradas antes desse campo existir
+// não têm esse dado, então quem chama decide o fallback.
+function ExplanationNote({ text }: { text: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        alignItems: "flex-start",
+        fontSize: 12.5,
+        color: "var(--muted)",
+        marginTop: 8,
+        padding: "8px 10px",
+        borderRadius: 3,
+        background: "#fbf6e8",
+      }}
+    >
+      <span>💡</span>
+      <span style={{ lineHeight: 1.5 }}>{text}</span>
+    </div>
+  );
+}
+
+// Botão fechado por padrão que revela o texto de Leitura de novo — usado em
+// Fala e Escrita, onde o aluno costuma não lembrar mais do que tratava o
+// tema a ponto de falar ou escrever sobre ele.
+function ReadingRecapToggle({ reading }: { reading?: any }) {
+  const [open, setOpen] = useState(false);
+  const temTexto = reading?.isComparison ? reading?.textA?.text || reading?.textB?.text : reading?.text;
+  if (!temTexto) return null;
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          background: "none",
+          border: "none",
+          color: "var(--muted)",
+          fontSize: 12.5,
+          textDecoration: "underline",
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        🔎 {open ? "Esconder o texto da leitura" : "Rever o texto da leitura"}
+      </button>
+      {open && (
+        <div style={{ marginTop: 8 }}>
+          {reading.isComparison ? (
+            <>
+              <Card style={{ marginBottom: 8 }}>
+                <SectionLabel>{reading.textA?.label || "Texto A"}</SectionLabel>
+                <p style={{ fontSize: 14, lineHeight: 1.6, fontFamily: "'Poppins', sans-serif", margin: 0 }}>
+                  {reading.textA?.text}
+                </p>
+              </Card>
+              <Card>
+                <SectionLabel>{reading.textB?.label || "Texto B"}</SectionLabel>
+                <p style={{ fontSize: 14, lineHeight: 1.6, fontFamily: "'Poppins', sans-serif", margin: 0 }}>
+                  {reading.textB?.text}
+                </p>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <p style={{ fontSize: 14, lineHeight: 1.6, fontFamily: "'Poppins', sans-serif", margin: 0 }}>{reading.text}</p>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- Reading ----------
 export function ReadingBlock({
   sessionId,
@@ -132,39 +209,45 @@ export function ReadingBlock({
           <p style={{ fontSize: 15.5, lineHeight: 1.7, fontFamily: "'Poppins', sans-serif" }}>{data.text}</p>
         </Card>
       )}
-      {data.questions.map((q: any, i: number) => (
-        <Card key={i} style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{q.q}</div>
-          {(q.options || []).map((opt: string, oi: number) => {
-            const isChosen = answers[i] === oi;
-            const isCorrect = checked && oi === q.answerIndex;
-            const isWrongChosen = checked && isChosen && oi !== q.answerIndex;
-            return (
-              <button
-                key={oi}
-                disabled={checked}
-                onClick={() => setAnswers((a) => ({ ...a, [i]: oi }))}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "8px 10px",
-                  marginBottom: 6,
-                  borderRadius: 3,
-                  fontSize: 13.5,
-                  cursor: checked ? "default" : "pointer",
-                  border:
-                    "1px solid " +
-                    (isCorrect ? "var(--teal)" : isWrongChosen ? "var(--wine)" : isChosen ? "var(--teal)" : "var(--line)"),
-                  background: isCorrect ? "#eaf0ec" : isWrongChosen ? "#f5e7e9" : isChosen ? "#eaf0ec" : "#fbf8f1",
-                }}
-              >
-                {opt}
-              </button>
-            );
-          })}
-        </Card>
-      ))}
+      {data.questions.map((q: any, i: number) => {
+        const respondeuErrado = checked && answers[i] !== undefined && answers[i] !== q.answerIndex;
+        return (
+          <Card key={i} style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{q.q}</div>
+            {(q.options || []).map((opt: string, oi: number) => {
+              const isChosen = answers[i] === oi;
+              const isCorrect = checked && oi === q.answerIndex;
+              const isWrongChosen = checked && isChosen && oi !== q.answerIndex;
+              return (
+                <button
+                  key={oi}
+                  disabled={checked}
+                  onClick={() => setAnswers((a) => ({ ...a, [i]: oi }))}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "8px 10px",
+                    marginBottom: 6,
+                    borderRadius: 3,
+                    fontSize: 13.5,
+                    cursor: checked ? "default" : "pointer",
+                    border:
+                      "1px solid " +
+                      (isCorrect ? "var(--teal)" : isWrongChosen ? "var(--wine)" : isChosen ? "var(--teal)" : "var(--line)"),
+                    background: isCorrect ? "#eaf0ec" : isWrongChosen ? "#f5e7e9" : isChosen ? "#eaf0ec" : "#fbf8f1",
+                  }}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+            {respondeuErrado && (
+              <ExplanationNote text={q.explanation || `Resposta certa: ${q.options[q.answerIndex]}`} />
+            )}
+          </Card>
+        );
+      })}
       {!checked ? (
         <Button onClick={check} variant="ghost" style={{ width: "100%", padding: "11px 0" }}>
           Corrigir respostas
@@ -251,9 +334,7 @@ export function GrammarBlock({
               );
             })}
             {isRight !== undefined && isWrong && (
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>
-                Resposta certa: <strong>{item.options[item.answerIndex]}</strong>
-              </div>
+              <ExplanationNote text={item.explanation || `Resposta certa: ${item.options[item.answerIndex]}`} />
             )}
           </Card>
         );
@@ -551,6 +632,7 @@ export function SpeakingBlock({
   onDifficulty,
   onNext,
   isLast,
+  readingRecap,
 }: {
   sessionId: string;
   level: string;
@@ -558,6 +640,7 @@ export function SpeakingBlock({
   onDifficulty: (d: Difficulty) => void;
   onNext: () => void;
   isLast: boolean;
+  readingRecap?: any;
 }) {
   const { start, stop, recording, supported } = useAudioRecorder();
   const [feedback, setFeedback] = useState<any>(null);
@@ -696,6 +779,7 @@ export function SpeakingBlock({
     const item = gapFill[gapIdx];
     return (
       <div>
+        <ReadingRecapToggle reading={readingRecap} />
         <Card style={{ marginBottom: 14 }}>
           <SectionLabel>Complete a frase em voz alta ({gapIdx + 1}/{gapFill.length})</SectionLabel>
           <div style={{ fontSize: 17, marginTop: 6 }}>
@@ -793,6 +877,7 @@ export function SpeakingBlock({
 
   return (
     <div>
+      <ReadingRecapToggle reading={readingRecap} />
       <Card style={{ marginBottom: 14 }}>
         <p style={{ fontSize: 15, fontFamily: "'Poppins', sans-serif", lineHeight: 1.6 }}>{data.prompt}</p>
       </Card>
@@ -929,6 +1014,7 @@ export function WritingBlock({
   onDifficulty,
   onNext,
   isLast,
+  readingRecap,
 }: {
   sessionId: string;
   level: string;
@@ -936,6 +1022,7 @@ export function WritingBlock({
   onDifficulty: (d: Difficulty) => void;
   onNext: () => void;
   isLast: boolean;
+  readingRecap?: any;
 }) {
   const [text, setText] = useState("");
   const [feedback, setFeedback] = useState<any>(null);
@@ -962,6 +1049,7 @@ export function WritingBlock({
 
   return (
     <div>
+      <ReadingRecapToggle reading={readingRecap} />
       <Card style={{ marginBottom: 14 }}>
         <p style={{ fontSize: 15, fontFamily: "'Poppins', sans-serif", lineHeight: 1.6, marginBottom: 4 }}>{data.prompt}</p>
         <div style={{ fontSize: 12, color: "var(--muted)" }}>Mínimo sugerido: {data.minWords} palavras</div>

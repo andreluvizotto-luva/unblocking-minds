@@ -479,10 +479,10 @@ export default function HomePage() {
               <ListeningBlock sessionId={sessionId} data={content.listening} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
             )}
             {currentSkill === "speaking" && (
-              <SpeakingBlock sessionId={sessionId} level={level} data={content.speaking} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
+              <SpeakingBlock sessionId={sessionId} level={level} data={content.speaking} readingRecap={content.reading} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
             )}
             {currentSkill === "writing" && (
-              <WritingBlock sessionId={sessionId} level={level} data={content.writing} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
+              <WritingBlock sessionId={sessionId} level={level} data={content.writing} readingRecap={content.reading} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
             )}
 
             {/* Sair da aula: guardando o progresso, ou descartando tudo. */}
