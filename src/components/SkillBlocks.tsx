@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, Button, SectionLabel, useCloudSpeech, useAudioRecorder, ProcessingAnimation } from "./ui";
+import { Card, Button, SectionLabel, useCloudSpeech, useAudioRecorder, ProcessingAnimation, playAdvanceSound, playCheckSound } from "./ui";
 import { BreathingRitual } from "./BreathingRitual";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -33,12 +33,12 @@ function pickComparisonVoices(genderA: string | undefined, genderB: string | und
   return { voiceA, voiceB };
 }
 
-export const SKILL_META: Record<string, { label: string; icon: string }> = {
-  reading: { label: "Leitura", icon: "📖" },
-  grammar: { label: "Gramática", icon: "🧩" },
-  listening: { label: "Escuta", icon: "🎧" },
-  speaking: { label: "Fala", icon: "🎙️" },
-  writing: { label: "Escrita", icon: "✍️" },
+export const SKILL_META: Record<string, { label: string; labelEn: string; icon: string }> = {
+  reading: { label: "Leitura", labelEn: "Reading", icon: "📖" },
+  grammar: { label: "Gramática", labelEn: "Grammar", icon: "🧩" },
+  listening: { label: "Escuta", labelEn: "Listening", icon: "🎧" },
+  speaking: { label: "Fala", labelEn: "Speaking", icon: "🎙️" },
+  writing: { label: "Escrita", labelEn: "Writing", icon: "✍️" },
 };
 
 // Renderiza uma frase com lacuna: "before" + espaço em branco + "after".
@@ -71,7 +71,14 @@ type Difficulty = { skill: string; area: string; note: string };
 
 function NextButton({ onNext, isLast, disabled }: { onNext: () => void; isLast: boolean; disabled?: boolean }) {
   return (
-    <Button onClick={onNext} disabled={disabled} style={{ width: "100%", marginTop: 16, padding: "12px 0" }}>
+    <Button
+      onClick={() => {
+        playAdvanceSound();
+        onNext();
+      }}
+      disabled={disabled}
+      style={{ width: "100%", marginTop: 16, padding: "12px 0" }}
+    >
       {isLast ? "Ver relatório da aula" : "Próxima habilidade"}
     </Button>
   );
@@ -177,6 +184,7 @@ export function ReadingBlock({
   const [checked, setChecked] = useState(false);
 
   async function check() {
+    playCheckSound();
     for (let i = 0; i < data.questions.length; i++) {
       const q = data.questions[i];
       if (answers[i] !== q.answerIndex) {
@@ -250,7 +258,7 @@ export function ReadingBlock({
       })}
       {!checked ? (
         <Button onClick={check} variant="ghost" style={{ width: "100%", padding: "11px 0" }}>
-          Corrigir respostas
+          Conferir respostas
         </Button>
       ) : (
         <NextButton onNext={onNext} isLast={isLast} />
@@ -277,6 +285,7 @@ export function GrammarBlock({
   const [checked, setChecked] = useState(false);
 
   async function check() {
+    playCheckSound();
     for (let i = 0; i < data.items.length; i++) {
       const item = data.items[i];
       if (answers[i] !== item.answerIndex) {
@@ -341,7 +350,7 @@ export function GrammarBlock({
       })}
       {!checked ? (
         <Button onClick={check} variant="ghost" style={{ width: "100%", padding: "11px 0" }}>
-          Corrigir respostas
+          Conferir respostas
         </Button>
       ) : (
         <NextButton onNext={onNext} isLast={isLast} />
@@ -418,6 +427,7 @@ export function ListeningBlock({
   const played = (isComparison ? playedA && playedB : playedA) || falhouOAudio;
 
   async function check() {
+    playCheckSound();
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (answers[i] !== q.answerIndex) {
@@ -430,6 +440,7 @@ export function ListeningBlock({
   }
 
   async function checkGaps() {
+    playCheckSound();
     for (let i = 0; i < gapFill.length; i++) {
       const item = gapFill[i];
       if (gapAnswers[i] !== item.answerIndex) {
@@ -563,7 +574,7 @@ export function ListeningBlock({
         ))}
       {played && !checked && (
         <Button onClick={check} variant="ghost" style={{ width: "100%", padding: "11px 0" }}>
-          Corrigir respostas
+          Conferir respostas
         </Button>
       )}
 
@@ -613,7 +624,7 @@ export function ListeningBlock({
           ))}
           {!gapChecked && (
             <Button onClick={checkGaps} variant="ghost" style={{ width: "100%", padding: "11px 0" }}>
-              Corrigir lacunas
+              Conferir lacunas
             </Button>
           )}
         </Card>
@@ -1082,7 +1093,7 @@ export function WritingBlock({
           variant="ghost"
           style={{ width: "100%", padding: "11px 0" }}
         >
-          {loadingFb ? "Corrigindo…" : "Corrigir meu texto"}
+          {loadingFb ? "Avaliando…" : "Avaliar meu texto"}
         </Button>
       )}
 

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Card, Button } from "./ui";
+import { SKILL_META } from "./SkillBlocks";
 
 const W = 1080;
 const H = 1350;
@@ -14,14 +15,6 @@ const COLORS = {
   wine: "#c23653",
   muted: "#6b6660",
   success: "#25d366",
-};
-
-const SKILL_META: Record<string, { label: string; icon: string }> = {
-  reading: { label: "Leitura", icon: "📖" },
-  grammar: { label: "Gramática", icon: "🧩" },
-  listening: { label: "Escuta", icon: "🎧" },
-  speaking: { label: "Fala", icon: "🎙️" },
-  writing: { label: "Escrita", icon: "✍️" },
 };
 
 type Motif = "skyline" | "notes" | "books" | "plane" | "mountain" | "leaf" | "wave" | "cup" | "spark";

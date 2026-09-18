@@ -2,6 +2,61 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
+// Efeitos sonoros de UI curtos, gerados direto no navegador via Web Audio
+// API — sem arquivo de áudio (peso/licenciamento) e sem biblioteca nova.
+// Sempre chamados de dentro de um onClick, então o gesto do usuário já
+// libera o áudio nos navegadores que exigem isso (Safari/iOS incluído).
+let sharedAudioCtx: AudioContext | null = null;
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const Ctor = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctor) return null;
+    if (!sharedAudioCtx) sharedAudioCtx = new Ctor();
+    if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume().catch(() => {});
+    return sharedAudioCtx;
+  } catch {
+    return null;
+  }
+}
+
+function beep(ctx: AudioContext, freq: number, startOffset: number, duration: number, gainValue = 0.05) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.value = freq;
+  const start = ctx.currentTime + startOffset;
+  gain.gain.setValueAtTime(gainValue, start);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(start);
+  osc.stop(start + duration);
+}
+
+// Duas notas curtas ascendentes — toca ao avançar para a próxima habilidade.
+export function playAdvanceSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    beep(ctx, 660, 0, 0.12);
+    beep(ctx, 880, 0.1, 0.15);
+  } catch {
+    // som é só um mimo — falhar aqui nunca pode travar a aula
+  }
+}
+
+// Uma nota única e discreta — toca ao clicar em "Conferir".
+export function playCheckSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    beep(ctx, 520, 0, 0.1, 0.04);
+  } catch {
+    // idem
+  }
+}
+
 export function Card({
   children,
   style,

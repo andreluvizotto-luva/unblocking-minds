@@ -369,7 +369,10 @@ export default function HomePage() {
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{pending.topicTitle}</div>
                 <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 14 }}>
                   Nível {pending.level} · você parou em{" "}
-                  {SKILL_META[SKILL_ORDER[pending.skillIndex || 0]]?.label?.toLowerCase() || "leitura"}
+                  {(() => {
+                    const meta = SKILL_META[SKILL_ORDER[pending.skillIndex || 0]];
+                    return meta ? `${meta.label.toLowerCase()} · ${meta.labelEn.toLowerCase()}` : "leitura · reading";
+                  })()}
                 </div>
                 <Button onClick={resumeSession} style={{ width: "100%", padding: "13px 0" }}>
                   Continuar de onde parei
@@ -466,7 +469,7 @@ export default function HomePage() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <span style={{ fontSize: 20 }}>{SKILL_META[currentSkill].icon}</span>
               <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 19, fontWeight: 600 }}>
-                {SKILL_META[currentSkill].label}
+                {SKILL_META[currentSkill].label} <span style={{ opacity: 0.6, fontWeight: 500 }}>· {SKILL_META[currentSkill].labelEn}</span>
               </span>
             </div>
             {currentSkill === "reading" && (
