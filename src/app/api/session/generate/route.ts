@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getSkillDifficulty } from "@/lib/skill-difficulty";
 import { requireActiveUser } from "@/lib/require-active-user";
+import { embaralharAlternativas } from "@/lib/embaralhar-alternativas";
 
 export async function POST(req: Request) {
   const { topicKind } = await req.json();
@@ -159,6 +160,27 @@ Gere um objeto JSON com exatamente esta forma:
     "minWords": número
   }
 }
+
+REGRAS PARA TODAS AS ALTERNATIVAS DE MÚLTIPLA ESCOLHA (leitura, escuta, gramática e lacunas):
+
+- Emparelhe as alternativas. As quatro devem ter tamanho parecido (nenhuma
+  visivelmente mais longa que as outras), a mesma categoria gramatical, o mesmo
+  grau de especificidade e o mesmo registro. A alternativa correta não pode ser
+  identificável por ser a mais completa, a mais detalhada ou a mais bem escrita.
+- As erradas erram por um motivo claro e pedagógico: um detalhe trocado em
+  relação ao texto, uma ideia que não aparece no texto, ou uma confusão típica
+  de quem está no nível do aluno. Cada distratora deve ser plausível para quem
+  não entendeu, e inequivocamente errada para quem entendeu.
+- Nada de pegadinha. Não use negativas duplas, não faça alternativas que se
+  diferenciam por uma única palavra escondida no meio da frase, não escreva duas
+  alternativas defensáveis, e não use "todas as anteriores" nem "nenhuma das
+  anteriores". Exatamente uma alternativa é defendível.
+- Não repita na alternativa correta as mesmas palavras da pergunta ou do texto
+  se as outras não repetirem também: isso entrega a resposta pela forma.
+- Nas lacunas, as quatro opções devem caber gramaticalmente na frase. Uma opção
+  que não encaixa na estrutura é eliminada sem que o aluno precise entender o
+  sentido, e não avalia nada.
+
 Responda apenas o JSON.`;
 
   let generated;
@@ -172,6 +194,11 @@ Responda apenas o JSON.`;
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Falha ao gerar aula" }, { status: 502 });
   }
+
+  // Embaralha ANTES de gravar em sessions.content — precisa acontecer aqui,
+  // não na leitura, senão a ordem das alternativas mudaria a cada vez que o
+  // aluno reabrisse uma aula pela metade (ver embaralhar-alternativas.ts).
+  generated = embaralharAlternativas(generated);
 
   // A aula é gravada com a chave service_role. O aluno continua podendo LER
   // as próprias aulas (a tela de perfil depende disso), mas não pode criar
