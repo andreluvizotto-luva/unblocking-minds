@@ -169,10 +169,40 @@ export function ProcessingAnimation({
   }, [messages]);
 
   const sparkSize = size === "compact" ? 30 : 52;
+  const ringBox = sparkSize * 1.9;
 
   return (
     <div style={{ textAlign: "center", padding: size === "compact" ? "6px 4px" : "10px 4px" }}>
-      <Spark size={sparkSize} style={{ animation: "sparkPulse 1.7s ease-in-out infinite", marginBottom: size === "compact" ? 6 : 14 }} />
+      <div
+        style={{
+          position: "relative",
+          width: ringBox,
+          height: ringBox,
+          margin: `0 auto ${size === "compact" ? 6 : 14}px`,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 999,
+            border: "2px solid rgba(246,160,23,0.5)",
+            animation: "ringExpand 2.4s ease-out infinite",
+          }}
+        />
+        <span
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 999,
+            border: "2px solid rgba(243,227,84,0.35)",
+            animation: "ringExpand 2.4s ease-out 1.2s infinite",
+          }}
+        />
+        <Spark size={sparkSize} style={{ animation: "sparkPulse 1.7s ease-in-out infinite" }} />
+      </div>
       {title && (
         <div
           style={{
@@ -302,6 +332,63 @@ export function Button({
       onMouseDown={() => setPressed(true)}
       onMouseUp={() => setPressed(false)}
       style={{ ...base, ...variants[variant], ...style }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Botão "físico": sombra sólida embaixo que reduz e desloca o botão pra
+// baixo quando pressionado, imitando um botão de verdade sendo apertado.
+// Usado nos CTAs de maior destaque (começar aula, conferir respostas,
+// compartilhar resultado) — os demais botões continuam usando <Button>.
+export function PhysicalButton({
+  children,
+  onClick,
+  disabled,
+  background,
+  color,
+  shadowColor,
+  style,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  background: string;
+  color: string;
+  shadowColor: string;
+  style?: React.CSSProperties;
+}) {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setPressed(false)}
+      onTouchStart={() => setPressed(true)}
+      onTouchEnd={() => setPressed(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "100%",
+        minHeight: 58,
+        border: "none",
+        borderRadius: 16,
+        background,
+        color,
+        fontFamily: "'Poppins', sans-serif",
+        fontWeight: 600,
+        fontSize: 17,
+        letterSpacing: "-0.01em",
+        cursor: disabled ? "not-allowed" : "pointer",
+        boxShadow: `0 ${pressed ? 2 : 5}px 0 ${shadowColor}`,
+        transform: pressed ? "translateY(3px)" : "none",
+        transition: "background 0.25s, box-shadow 0.12s, transform 0.12s",
+        ...style,
+      }}
     >
       {children}
     </button>

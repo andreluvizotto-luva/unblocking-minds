@@ -15,6 +15,7 @@
   --card: #ffffff;
   --muted: #6b6660; /* texto secundário sobre cartões claros */
   --muted-on-dark: #b6bad8; /* texto secundário direto sobre o navy */
+  --mustard-dark: #8a5c08; /* dourado escurecido — única variante de --mustard com contraste AA (4.5:1) para texto pequeno sobre fundo claro */
 }
 
 * {
@@ -53,6 +54,13 @@ button {
 @keyframes sparkPulse {
   0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
   50% { transform: scale(1.14) rotate(-6deg); opacity: 1; }
+}
+
+/* Anéis concêntricos que se expandem e desaparecem ao redor da fagulha nas
+   telas de espera — reforça "algo está acontecendo" sem ser um spinner. */
+@keyframes ringExpand {
+  0% { transform: scale(0.85); opacity: 0.55; }
+  100% { transform: scale(1.5); opacity: 0; }
 }
 
 .fade-in-up {

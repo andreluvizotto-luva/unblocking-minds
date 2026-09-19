@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import { Card, Button, SectionLabel, Spark, ProcessingAnimation } from "@/components/ui";
+import { Card, Button, SectionLabel, Spark, PhysicalButton, ProcessingAnimation } from "@/components/ui";
 import {
   SKILL_META,
   ReadingBlock,
@@ -42,6 +42,74 @@ const TOPIC_KINDS = [
 
 const SKILL_ORDER = ["reading", "grammar", "listening", "speaking", "writing"];
 
+// Lockup oficial da marca: "+Unblocking" seguido da fagulha, sobrepondo
+// levemente o final do texto — nunca a logo antiga em PNG.
+function Lockup({ size = 20, color = "var(--ink-on-dark)" }: { size?: number; color?: string }) {
+  const sparkSize = Math.round(size * 1.2);
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        fontFamily: "'Poppins', sans-serif",
+        fontWeight: 600,
+        fontSize: size,
+        letterSpacing: "-0.01em",
+        color,
+      }}
+    >
+      +Unblocking
+      <img
+        src="/spark.png"
+        alt=""
+        style={{ width: sparkSize, height: sparkSize, marginLeft: -Math.round(size * 0.4), transform: `translateY(-${Math.round(size * 0.15)}px)` }}
+      />
+    </span>
+  );
+}
+
+// Trilha de progresso das 5 habilidades — a habilidade atual expande e
+// mostra o nome completo, as demais colapsam para a abreviação de 4 letras.
+function SkillTrack({ skillIdx }: { skillIdx: number }) {
+  return (
+    <div style={{ display: "flex", gap: 5, alignItems: "flex-end" }}>
+      {SKILL_ORDER.map((key, i) => {
+        const meta = SKILL_META[key];
+        const done = i < skillIdx;
+        const current = i === skillIdx;
+        return (
+          <div key={key} style={{ flex: current ? 2.2 : 1, display: "flex", flexDirection: "column", gap: 7, minWidth: 0 }}>
+            <div style={{ height: 6, borderRadius: 999, background: "rgba(247,245,239,.18)", overflow: "hidden" }}>
+              <div
+                style={{
+                  height: "100%",
+                  borderRadius: 999,
+                  background: done || current ? (done ? "var(--success)" : "var(--teal)") : "transparent",
+                  width: done || current ? "100%" : "0%",
+                  transition: "width .6s cubic-bezier(.4,0,.2,1), background .3s",
+                }}
+              />
+            </div>
+            <span
+              style={{
+                fontFamily: "'Work Sans', sans-serif",
+                fontSize: current ? 12 : 10.5,
+                fontWeight: current ? 600 : 500,
+                color: current ? "var(--ink-on-dark)" : done ? "#3ee07a" : "var(--muted-on-dark)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {current ? meta.label : meta.label.slice(0, 4)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
   const supabase = supabaseBrowser();
@@ -68,6 +136,8 @@ export default function HomePage() {
 
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
   const [nextAchievement, setNextAchievement] = useState<AchievementItem | null>(null);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [sessionCount, setSessionCount] = useState(0);
   const quote = React.useMemo(() => getQuoteOfDay(), []);
 
   useEffect(() => {
@@ -99,6 +169,8 @@ export default function HomePage() {
           if (!gam) return;
           setAchievements(gam.achievements || []);
           setNextAchievement(gam.nextAchievement || null);
+          setCurrentStreak(gam.currentStreak || 0);
+          setSessionCount(gam.sessionCount || 0);
         })
         .catch(() => {});
     });
@@ -271,209 +343,41 @@ export default function HomePage() {
 
   const currentSkill = SKILL_ORDER[skillIdx];
 
-  return (
-    <div style={{ minHeight: "100vh", padding: "24px 16px 100px" }}>
-      <div style={{ maxWidth: 640, margin: "0 auto", color: "var(--ink-on-dark)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <img src="/unblocking-minds-logo-light.png" alt="Unblocking Minds" style={{ height: 34, width: "auto" }} />
-          <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 28, fontWeight: 800, lineHeight: 1.15 }}>
-            +Unblocking
-          </div>
-          <Spark size={16} style={{ marginTop: -14 }} />
-        </div>
-        <div
-          style={{
-            fontFamily: "'Caveat', cursive",
-            fontSize: 21,
-            fontWeight: 600,
-            color: "var(--mustard-bright)",
-            marginBottom: 22,
-          }}
-        >
-          {stage === "setup" && (studentName ? `Bem-vindo(a) de volta, ${studentName.split(" ")[0]}!` : "Respire, fale e desbloqueie, com uma aula nova a cada dia")}
-          {stage === "loading" && "Montando a aula de hoje…"}
-          {stage === "session" && content?.topic && `${content.topic.title} · nível ${level}`}
-          {stage === "report" && "Relatório da aula"}
-        </div>
+  const nextSkillLabel = skillIdx < SKILL_ORDER.length - 1 ? SKILL_META[SKILL_ORDER[skillIdx + 1]].label : undefined;
 
-        {stage === "session" && (
-          <div style={{ display: "flex", gap: 6, marginBottom: 22 }}>
-            {SKILL_ORDER.map((_, i) => (
-              <div key={i} style={{ height: 3, flex: 1, background: i <= skillIdx ? "var(--teal)" : "var(--line)", borderRadius: 2 }} />
-            ))}
-          </div>
-        )}
-
-        {stage === "setup" && (
-          <div>
-            {achievements.length > 0 && (
-              <Card className="fade-in-up" style={{ marginBottom: 16, background: "#1f2b4a", border: "1px solid var(--line-on-dark)", color: "var(--ink-on-dark)" }}>
-                <SectionLabel>
-                  <span style={{ color: "var(--muted-on-dark)" }}>Suas conquistas</span>
-                </SectionLabel>
-                <AchievementStrip achievements={achievements} nextAchievement={nextAchievement} onDark />
-              </Card>
-            )}
-
-            <Card
-              className="fade-in-up"
-              style={{
-                marginBottom: 16,
-                background: "linear-gradient(155deg, #f3e354, #f6a017)",
-                border: "none",
-                color: "var(--ink)",
-              }}
-            >
-              <div style={{ fontFamily: "'Caveat', cursive", fontSize: 22, fontWeight: 700, lineHeight: 1.3 }}>
-                “{quote.text}”
-              </div>
-              <div style={{ fontSize: 12.5, fontWeight: 700, marginTop: 8, opacity: 0.85 }}>
-                — {quote.author}{quote.context ? `, ${quote.context}` : ""}
-              </div>
-            </Card>
-
-            <Card style={{ marginBottom: 20 }}>
-              <SectionLabel>Assunto de hoje</SectionLabel>
-              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                {TOPIC_KINDS.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setTopicKind(t.id)}
-                    style={{
-                      cursor: "pointer",
-                      borderRadius: 20,
-                      padding: "8px 16px",
-                      fontSize: 13.5,
-                      fontWeight: 500,
-                      transition: "transform 0.12s ease, background 0.12s ease",
-                      transform: topicKind === t.id ? "scale(1.04)" : "none",
-                      border: topicKind === t.id ? "1px solid var(--teal)" : "1px solid var(--line)",
-                      background: topicKind === t.id ? "var(--teal)" : "#fbf8f1",
-                      color: "var(--ink)",
-                    }}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </Card>
-
-            {error && <div style={{ color: "var(--wine)", fontSize: 13.5, marginBottom: 12 }}>{error}</div>}
-
-            {level && pending ? (
-              // Com uma aula em aberto, o caminho principal é retomá-la. Só
-              // depois de terminar ou descartar é que ele começa outra —
-              // evita acumular aulas pela metade.
-              <Card style={{ borderColor: "var(--teal)", background: "#fffdf7" }}>
-                <SectionLabel>Aula para finalizar</SectionLabel>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{pending.topicTitle}</div>
-                <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 14 }}>
-                  Nível {pending.level} · você parou em{" "}
-                  {(() => {
-                    const meta = SKILL_META[SKILL_ORDER[pending.skillIndex || 0]];
-                    return meta ? `${meta.label.toLowerCase()} · ${meta.labelEn.toLowerCase()}` : "leitura · reading";
-                  })()}
-                </div>
-                <Button onClick={resumeSession} style={{ width: "100%", padding: "13px 0" }}>
-                  Continuar de onde parei
-                </Button>
-                {!confirmandoDescarteInicial ? (
-                  <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 12, textAlign: "center" }}>
-                    Quer começar outra?{" "}
-                    <span
-                      onClick={() => setConfirmandoDescarteInicial(true)}
-                      style={{ color: "var(--wine)", cursor: "pointer", fontWeight: 600 }}
-                    >
-                      Descartar esta aula
-                    </span>
-                  </div>
-                ) : (
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
-                    <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, marginBottom: 12 }}>
-                      Esta aula e tudo o que você já respondeu nela serão apagados, e ela não vai gerar relatório. Não
-                      há como recuperar depois.
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        onClick={discardPending}
-                        disabled={saindo}
-                        style={{
-                          padding: "9px 16px",
-                          background: "var(--wine)",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 3,
-                          fontFamily: "inherit",
-                          fontWeight: 600,
-                          fontSize: 13,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {saindo ? "Apagando…" : "Sim, apagar"}
-                      </button>
-                      <button
-                        onClick={() => setConfirmandoDescarteInicial(false)}
-                        disabled={saindo}
-                        style={{
-                          padding: "9px 16px",
-                          background: "transparent",
-                          color: "var(--muted)",
-                          border: "1px solid var(--line)",
-                          borderRadius: 3,
-                          fontFamily: "inherit",
-                          fontWeight: 600,
-                          fontSize: 13,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            ) : level ? (
-              <Button onClick={startSession} style={{ width: "100%", padding: "13px 0" }}>
-                Começar aula de hoje · nível {level}
-              </Button>
-            ) : (
-              <Card style={{ textAlign: "center", borderColor: "var(--mustard)" }}>
-                <div style={{ fontSize: 28, marginBottom: 6 }}>⏳</div>
-                <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>Aguardando seu nível</div>
-                <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                  Um administrador do +Unblocking ainda vai definir seu nível de proficiência (CEFR). Assim que isso
-                  acontecer, você já poderá começar a praticar.
-                </div>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {stage === "loading" && (
-          <Card style={{ textAlign: "center", padding: "40px 24px" }}>
-            <ProcessingAnimation
-              title="Preparando sua aula…"
-              messages={[
-                "Escolhendo um tema que combina com você…",
-                "Destravando novas palavras para hoje…",
-                "Montando os exercícios de cada habilidade…",
-                "Calibrando a dificuldade certa pro seu nível…",
-                "Preparando o seu próximo desbloqueio…",
-              ]}
-            />
-          </Card>
-        )}
-
-        {stage === "session" && content && sessionId && (
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <span style={{ fontSize: 20 }}>{SKILL_META[currentSkill].icon}</span>
-              <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 19, fontWeight: 600 }}>
-                {SKILL_META[currentSkill].label} <span style={{ opacity: 0.6, fontWeight: 500 }}>· {SKILL_META[currentSkill].labelEn}</span>
+  if (stage === "session" && content && sessionId) {
+    return (
+      <div style={{ minHeight: "100vh" }}>
+        <div style={{ background: "#283758", padding: "44px 20px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ maxWidth: 640, margin: "0 auto", width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+              <Lockup size={18} />
+              <button
+                onClick={finishLater}
+                style={{ border: "none", background: "transparent", color: "var(--muted-on-dark)", fontFamily: "'Work Sans', sans-serif", fontSize: 13, fontWeight: 500, padding: "6px 0", cursor: "pointer" }}
+              >
+                Terminar depois
+              </button>
+              <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 12, fontWeight: 600, color: "var(--ink-on-dark)", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
+                {skillIdx + 1} de {SKILL_ORDER.length} · {SKILL_META[currentSkill].label}
               </span>
             </div>
+            <SkillTrack skillIdx={skillIdx} />
+          </div>
+        </div>
+
+        <div style={{ background: "#f7f5ef", minHeight: "calc(100vh - 132px)", padding: "22px 20px 100px" }}>
+          <div style={{ maxWidth: 640, margin: "0 auto", color: "var(--ink)" }}>
             {currentSkill === "reading" && (
-              <ReadingBlock sessionId={sessionId} data={content.reading} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
+              <ReadingBlock
+                sessionId={sessionId}
+                data={content.reading}
+                topicTitle={content.topic?.title}
+                nextLabel={nextSkillLabel}
+                onDifficulty={addLog}
+                onNext={nextSkill}
+                isLast={skillIdx === SKILL_ORDER.length - 1}
+              />
             )}
             {currentSkill === "grammar" && (
               <GrammarBlock sessionId={sessionId} data={content.grammar} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
@@ -489,32 +393,16 @@ export default function HomePage() {
             )}
 
             {/* Sair da aula: guardando o progresso, ou descartando tudo. */}
-            <div style={{ marginTop: 24, paddingTop: 18, borderTop: "1px solid var(--line-on-dark)" }}>
+            <div style={{ marginTop: 24, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
               {!confirmandoSaida ? (
-                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                  <button
-                    onClick={finishLater}
-                    style={{
-                      padding: "10px 18px",
-                      background: "transparent",
-                      color: "var(--ink-on-dark)",
-                      border: "1px solid var(--line-on-dark)",
-                      borderRadius: 3,
-                      fontFamily: "inherit",
-                      fontWeight: 600,
-                      fontSize: 13.5,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Terminar depois
-                  </button>
+                <div style={{ display: "flex", justifyContent: "center" }}>
                   <button
                     onClick={() => setConfirmandoSaida(true)}
                     style={{
                       padding: "10px 18px",
                       background: "transparent",
-                      color: "var(--muted-on-dark)",
-                      border: "1px solid var(--line-on-dark)",
+                      color: "var(--muted)",
+                      border: "1px solid var(--line)",
                       borderRadius: 3,
                       fontFamily: "inherit",
                       fontWeight: 600,
@@ -572,195 +460,458 @@ export default function HomePage() {
               )}
             </div>
           </div>
+        </div>
+        <BottomNav onSignOut={signOut} isAdmin={isAdmin} />
+      </div>
+    );
+  }
+
+  if (stage === "report") {
+    return (
+      <>
+        <ReportView loading={reportLoading} report={report} topic={content?.topic} level={level} onRestart={restart} log={log} />
+        <BottomNav onSignOut={signOut} isAdmin={isAdmin} />
+      </>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "24px 16px 100px" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", color: "var(--ink-on-dark)" }}>
+        <div style={{ marginBottom: stage === "setup" ? 18 : 22 }}>
+          <Lockup size={20} />
+        </div>
+
+        {stage === "setup" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 14, color: "var(--muted-on-dark)" }}>Boa {new Date().getHours() < 12 ? "manhã" : new Date().getHours() < 18 ? "tarde" : "noite"},</span>
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 24, lineHeight: 1.15, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                  {studentName ? studentName.split(" ")[0] : "por aqui"}
+                </span>
+              </div>
+              {currentStreak > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 13px", borderRadius: 999, background: "rgba(246,160,23,.16)", border: "1px solid rgba(246,160,23,.4)", flexShrink: 0 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: "var(--teal)" }} />
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 13, fontWeight: 600, color: "var(--teal)" }}>
+                    {currentStreak} {currentStreak === 1 ? "dia" : "dias"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <p style={{ margin: "0 0 22px", fontFamily: "'Caveat', cursive", fontSize: 21, fontWeight: 500, lineHeight: 1.3, color: "var(--mustard-bright)" }}>
+              “{quote.text}”
+            </p>
+
+            <Card style={{ marginBottom: 16 }}>
+              <SectionLabel>Assunto de hoje</SectionLabel>
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                {TOPIC_KINDS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTopicKind(t.id)}
+                    style={{
+                      cursor: "pointer",
+                      borderRadius: 20,
+                      padding: "8px 16px",
+                      fontSize: 13.5,
+                      fontWeight: 500,
+                      transition: "transform 0.12s ease, background 0.12s ease",
+                      transform: topicKind === t.id ? "scale(1.04)" : "none",
+                      border: topicKind === t.id ? "1px solid var(--teal)" : "1px solid var(--line)",
+                      background: topicKind === t.id ? "var(--teal)" : "#fbf8f1",
+                      color: "var(--ink)",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            {error && <div style={{ color: "var(--wine)", fontSize: 13.5, marginBottom: 12 }}>{error}</div>}
+
+            {level && pending ? (
+              // Com uma aula em aberto, o caminho principal é retomá-la. Só
+              // depois de terminar ou descartar é que ele começa outra —
+              // evita acumular aulas pela metade.
+              <div style={{ borderRadius: 18, border: "1px dashed rgba(247,245,239,.32)", padding: "16px 18px", marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+                  <span style={{ width: 38, height: 38, borderRadius: 12, background: "var(--coral)", display: "grid", placeItems: "center", fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, color: "var(--ink-on-dark)", flexShrink: 0 }}>
+                    ↺
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 14, fontWeight: 600 }}>{pending.topicTitle}</span>
+                    <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 12.5, color: "var(--muted-on-dark)" }}>
+                      Nível {pending.level} · parou em{" "}
+                      {(() => {
+                        const meta = SKILL_META[SKILL_ORDER[pending.skillIndex || 0]];
+                        return meta ? `${meta.label.toLowerCase()} · ${meta.labelEn.toLowerCase()}` : "leitura · reading";
+                      })()}
+                    </span>
+                  </div>
+                </div>
+                <PhysicalButton onClick={resumeSession} background="var(--teal)" color="var(--ink)" shadowColor="var(--mustard)">
+                  Continuar de onde parei
+                </PhysicalButton>
+                {!confirmandoDescarteInicial ? (
+                  <div style={{ fontSize: 12.5, color: "var(--muted-on-dark)", marginTop: 12, textAlign: "center" }}>
+                    Quer começar outra?{" "}
+                    <span
+                      onClick={() => setConfirmandoDescarteInicial(true)}
+                      style={{ color: "var(--coral)", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Descartar esta aula
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line-on-dark)" }}>
+                    <div style={{ fontSize: 13, color: "var(--muted-on-dark)", lineHeight: 1.6, marginBottom: 12 }}>
+                      Esta aula e tudo o que você já respondeu nela serão apagados, e ela não vai gerar relatório. Não
+                      há como recuperar depois.
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        onClick={discardPending}
+                        disabled={saindo}
+                        style={{
+                          padding: "9px 16px",
+                          background: "var(--wine)",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 3,
+                          fontFamily: "inherit",
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {saindo ? "Apagando…" : "Sim, apagar"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmandoDescarteInicial(false)}
+                        disabled={saindo}
+                        style={{
+                          padding: "9px 16px",
+                          background: "transparent",
+                          color: "var(--muted-on-dark)",
+                          border: "1px solid var(--line-on-dark)",
+                          borderRadius: 3,
+                          fontFamily: "inherit",
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : level ? (
+              <div style={{ borderRadius: 22, background: "#f7f5ef", padding: 22, display: "flex", flexDirection: "column", gap: 16, boxShadow: "0 14px 34px rgba(16,20,58,.22)", marginBottom: 22 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--mustard-dark)" }}>
+                    Aula de hoje · {LEVEL_LABELS[level] || level}
+                  </span>
+                  <h2 style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontSize: 22, lineHeight: 1.2, fontWeight: 600, letterSpacing: "-0.015em", color: "var(--ink)" }}>
+                    Pronta quando você estiver
+                  </h2>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {SKILL_ORDER.map((key) => (
+                    <div key={key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: "100%", height: 5, borderRadius: 999, background: "#e2ddd0" }} />
+                      <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 9.5, color: "#7d7768", letterSpacing: "0.02em" }}>
+                        {SKILL_META[key].label.slice(0, 4)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Work Sans', sans-serif", fontSize: 13, color: "#5d5849" }}>
+                  <span style={{ width: 5, height: 5, borderRadius: 999, background: "var(--sage)" }} />
+                  <span>5 habilidades · cerca de 15-20 minutos</span>
+                </div>
+                <PhysicalButton onClick={startSession} background="var(--teal)" color="var(--ink)" shadowColor="var(--mustard)">
+                  Começar aula de hoje
+                  <img src="/spark.png" alt="" style={{ width: 36, height: 36, marginLeft: -8, transform: "translateY(-3px)", filter: "brightness(0) saturate(100%)" }} />
+                </PhysicalButton>
+              </div>
+            ) : (
+              <Card style={{ textAlign: "center", borderColor: "var(--mustard)", marginBottom: 20 }}>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>⏳</div>
+                <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>Aguardando seu nível</div>
+                <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                  Um administrador do +Unblocking ainda vai definir seu nível de proficiência (CEFR). Assim que isso
+                  acontecer, você já poderá começar a praticar.
+                </div>
+              </Card>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted-on-dark)" }}>
+                Suas conquistas
+              </span>
+              <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ flex: 1, borderRadius: 16, background: "rgba(79,98,72,.55)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--ink-on-dark)" }}>{currentStreak}</span>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11.5, lineHeight: 1.3, color: "#dcd8c9" }}>dias seguidos</span>
+                </div>
+                <div style={{ flex: 1, borderRadius: 16, background: "rgba(201,137,27,.3)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--teal)" }}>{sessionCount}</span>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11.5, lineHeight: 1.3, color: "#dcd8c9" }}>aulas concluídas</span>
+                </div>
+                <div style={{ flex: 1, borderRadius: 16, background: "rgba(234,80,99,.28)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--coral)" }}>{level || "—"}</span>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11.5, lineHeight: 1.3, color: "#dcd8c9" }}>nível atual</span>
+                </div>
+              </div>
+              {achievements.length > 0 && (
+                <Card className="fade-in-up" style={{ marginTop: 4, background: "#1f2b4a", border: "1px solid var(--line-on-dark)", color: "var(--ink-on-dark)" }}>
+                  <AchievementStrip achievements={achievements} nextAchievement={nextAchievement} onDark />
+                </Card>
+              )}
+            </div>
+          </div>
         )}
 
-        {stage === "report" && (
-          <ReportView loading={reportLoading} report={report} topic={content?.topic} level={level} onRestart={restart} log={log} />
+        {stage === "loading" && (
+          <Card style={{ textAlign: "center", padding: "40px 24px" }}>
+            <ProcessingAnimation
+              title="Preparando sua aula…"
+              messages={[
+                "Escolhendo um tema que combina com você…",
+                "Destravando novas palavras para hoje…",
+                "Montando os exercícios de cada habilidade…",
+                "Calibrando a dificuldade certa pro seu nível…",
+                "Preparando o seu próximo desbloqueio…",
+              ]}
+            />
+          </Card>
         )}
+
       </div>
       <BottomNav onSignOut={signOut} isAdmin={isAdmin} />
     </div>
   );
 }
 
-function StreakAndAchievements({ streak, unlockedAchievements }: any) {
-  if (!streak && (!unlockedAchievements || unlockedAchievements.length === 0)) return null;
-  return (
-    <Card style={{ marginBottom: 16, textAlign: "center" }}>
-      {streak && streak.currentStreak > 0 && (
-        <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 700, marginBottom: unlockedAchievements?.length ? 12 : 0 }}>
-          🔥 {streak.currentStreak} {streak.currentStreak === 1 ? "dia seguido" : "dias seguidos"} de prática
-          {streak.longestStreak > streak.currentStreak && (
-            <span style={{ fontWeight: 400, fontSize: 12.5, color: "var(--muted)" }}>
-              {" "}
-              · seu recorde é {streak.longestStreak}
-            </span>
-          )}
-        </div>
-      )}
-      {unlockedAchievements?.length > 0 && (
-        <div>
-          <div style={{ fontFamily: "'Caveat', cursive", fontSize: 19, color: "var(--mustard-bright)", marginBottom: 8 }}>
-            Nova{unlockedAchievements.length > 1 ? "s" : ""} conquista{unlockedAchievements.length > 1 ? "s" : ""} desbloqueada{unlockedAchievements.length > 1 ? "s" : ""}!
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
-            {unlockedAchievements.map((a: any) => (
-              <div
-                key={a.code}
-                style={{
-                  border: "1px solid var(--line)",
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  minWidth: 120,
-                  maxWidth: 160,
-                }}
-              >
-                <div style={{ fontSize: 22, marginBottom: 2 }}>{a.icon}</div>
-                <div style={{ fontSize: 12, fontWeight: 700 }}>{a.title}</div>
-                <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 2 }}>{a.description}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </Card>
-  );
+// Cor por habilidade dos cartões "Para praticar amanhã" — cada categoria
+// de erro ganha uma cor da paleta, coerente com o uso dela no resto do app.
+const SKILL_TAG_COLOR: Record<string, string> = {
+  Leitura: "var(--mustard-dark)",
+  Gramática: "var(--mustard-dark)",
+  Escuta: "var(--wine)",
+  Fala: "var(--coral)",
+  Escrita: "var(--sage)",
+};
+
+// "forte"/"adequado"/"a desenvolver" viram uma barra de progresso e uma cor
+// — não temos uma fração real (tipo "4/5"), então a barra é uma leitura
+// visual da categoria, não uma contagem exata de acertos.
+function scoreBarPct(score?: string) {
+  return score === "forte" ? 100 : score === "a desenvolver" ? 35 : 65;
+}
+function scoreBarColor(score?: string) {
+  return score === "forte" ? "#1a7a44" : score === "a desenvolver" ? "var(--wine)" : "var(--mustard-dark)";
 }
 
 function ReportView({ loading, report, topic, level, onRestart, log }: any) {
   if (loading) {
     return (
-      <Card style={{ textAlign: "center", padding: "40px 24px" }}>
-        <ProcessingAnimation
-          title="Gerando relatório da aula…"
-          messages={[
-            "Revendo cada resposta com carinho…",
-            "Separando o que já está redondo…",
-            "Encontrando o que vale destravar amanhã…",
-            "Contando seus pontos fortes de hoje…",
-            "Deixando tudo prontinho pra você ver…",
-          ]}
-        />
-      </Card>
+      <div style={{ minHeight: "100vh", padding: "24px 16px 100px" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto" }}>
+          <Card style={{ textAlign: "center", padding: "40px 24px" }}>
+            <ProcessingAnimation
+              title="Gerando relatório da aula…"
+              messages={[
+                "Revendo cada resposta com carinho…",
+                "Separando o que já está redondo…",
+                "Encontrando o que vale destravar amanhã…",
+                "Contando seus pontos fortes de hoje…",
+                "Deixando tudo prontinho pra você ver…",
+              ]}
+            />
+          </Card>
+        </div>
+      </div>
     );
   }
   if (!report) return null;
 
   if (report._saveFailed) {
     return (
-      <Card style={{ padding: "28px 24px" }}>
-        <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 17, marginBottom: 8 }}>
-          Não foi possível salvar o relatório desta aula
+      <div style={{ minHeight: "100vh", padding: "24px 16px 100px" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto" }}>
+          <Card style={{ padding: "28px 24px" }}>
+            <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 17, marginBottom: 8 }}>
+              Não foi possível salvar o relatório desta aula
+            </div>
+            <p style={{ fontSize: 13.5, color: "var(--wine)", marginBottom: 16 }}>{report._errorMessage}</p>
+            <p style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 16 }}>
+              Essa aula não vai aparecer em "Minha área" porque o relatório não foi gravado no banco. Verifique sua
+              conexão/configuração do Supabase e tente de novo.
+            </p>
+            <Button onClick={onRestart} style={{ width: "100%", padding: "12px 0" }}>
+              Voltar ao início
+            </Button>
+          </Card>
         </div>
-        <p style={{ fontSize: 13.5, color: "var(--wine)", marginBottom: 16 }}>{report._errorMessage}</p>
-        <p style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 16 }}>
-          Essa aula não vai aparecer em "Minha área" porque o relatório não foi gravado no banco. Verifique sua
-          conexão/configuração do Supabase e tente de novo.
-        </p>
-        <Button onClick={onRestart} style={{ width: "100%", padding: "12px 0" }}>
-          Voltar ao início
-        </Button>
-      </Card>
+      </div>
     );
   }
 
-  return (
-    <div>
-      <StreakAndAchievements streak={report.streak} unlockedAchievements={report.unlockedAchievements} />
+  const overall = typeof report.scores?.overall === "number" ? report.scores.overall : null;
+  const streak = report.streak;
+  const unlockedAchievements = report.unlockedAchievements || [];
 
-      <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <div>
-            <SectionLabel>Tema de hoje</SectionLabel>
-            <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 17 }}>{topic?.title}</div>
-          </div>
-          {typeof report.scores?.overall === "number" && (
-            <div style={{ textAlign: "center", flexShrink: 0 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--teal)" }}>
-                {report.scores.overall.toFixed(1)}
-              </div>
-              <div style={{ fontSize: 10.5, color: "var(--muted)" }}>nota geral</div>
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <div style={{ background: "#283758", padding: "44px 22px 30px", display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ maxWidth: 640, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", gap: 18 }}>
+          <Lockup size={18} />
+          <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--mustard-bright)" }}>
+            Aula de hoje · concluída
+          </span>
+          {overall !== null && (
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 14 }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 58, lineHeight: 1, fontWeight: 700, color: "var(--ink-on-dark)", letterSpacing: "-0.03em" }}>
+                {overall.toFixed(1)}
+              </span>
+              <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 15, lineHeight: 1.3, color: "var(--muted-on-dark)", paddingBottom: 9 }}>
+                nota geral da aula
+                <br />
+                nas cinco habilidades
+              </span>
+            </div>
+          )}
+          <p style={{ margin: 0, fontFamily: "'Work Sans', sans-serif", fontSize: 14, lineHeight: 1.6, color: "var(--muted-on-dark)" }}>{report.summary}</p>
+          {(streak?.currentStreak > 0 || unlockedAchievements.length > 0) && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", paddingTop: 2 }}>
+              {streak?.currentStreak > 0 && (
+                <span style={{ display: "flex", alignItems: "center", padding: "8px 14px", borderRadius: 999, background: "rgba(246,160,23,.18)", border: "1px solid rgba(246,160,23,.45)", fontFamily: "'Work Sans', sans-serif", fontSize: 12.5, fontWeight: 600, color: "var(--teal)" }}>
+                  {streak.currentStreak} {streak.currentStreak === 1 ? "dia seguido" : "dias seguidos"}
+                  <img src="/spark.png" alt="" style={{ width: 26, height: 26, marginLeft: -6, transform: "translateY(-2px)" }} />
+                </span>
+              )}
+              {unlockedAchievements.length > 0 && (
+                <span style={{ padding: "7px 12px", borderRadius: 999, background: "rgba(37,211,102,.16)", border: "1px solid rgba(37,211,102,.4)", fontFamily: "'Work Sans', sans-serif", fontSize: 12.5, fontWeight: 600, color: "var(--success)" }}>
+                  {unlockedAchievements.length} nova{unlockedAchievements.length > 1 ? "s" : ""} conquista{unlockedAchievements.length > 1 ? "s" : ""}
+                </span>
+              )}
             </div>
           )}
         </div>
-        <p style={{ fontSize: 14, lineHeight: 1.6, marginTop: 10 }}>{report.summary}</p>
-      </Card>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-        {Object.entries(SKILL_META).map(([key, meta]: any) => {
-          const s = report.bySkill?.[key];
-          const color = s?.score === "forte" ? "var(--teal)" : s?.score === "a desenvolver" ? "var(--wine)" : "var(--mustard)";
-          return (
-            <Card key={key} style={{ padding: "14px 16px" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-                {meta.icon} {meta.label}
-              </div>
-              {s ? (
-                <>
-                  <div style={{ fontSize: 11.5, color, fontWeight: 600, marginBottom: 4, textTransform: "capitalize" }}>
-                    {s.score}
-                  </div>
-                  <div style={{ fontSize: 12.5, color: "#4a4636", lineHeight: 1.4 }}>{s.note}</div>
-                </>
-              ) : (
-                <div style={{ fontSize: 12.5, color: "var(--muted)" }}>Sem dados</div>
-              )}
-            </Card>
-          );
-        })}
       </div>
 
-      {report.recurringDifficulties?.length > 0 && (
-        <Card style={{ marginBottom: 16 }}>
-          <SectionLabel>Dificuldades recorrentes</SectionLabel>
-          <ul style={{ fontSize: 13.5, margin: 0, paddingLeft: 18 }}>
-            {report.recurringDifficulties.map((d: string, i: number) => (
-              <li key={i} style={{ marginBottom: 4 }}>
-                {d}
-              </li>
-            ))}
-          </ul>
-          <div style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: "var(--sage)", marginTop: 10 }}>
-            Cada erro aqui é semente, não falha, porque mostra exatamente onde focar amanhã.
-          </div>
-        </Card>
-      )}
-
-      {log.length > 0 && (
-        <Card style={{ marginBottom: 16 }}>
-          <SectionLabel>Registro detalhado da aula</SectionLabel>
-          {log.map((l: any, i: number) => (
-            <div key={i} style={{ fontSize: 12.5, marginBottom: 6, color: "#4a4636" }}>
-              <strong>{l.skill}</strong> · {l.area}: {l.note}
+      <div style={{ background: "#f7f5ef", padding: "22px 22px 100px" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto", color: "var(--ink)" }}>
+          {unlockedAchievements.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
+              {unlockedAchievements.map((a: any) => (
+                <div key={a.code} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px", minWidth: 120, maxWidth: 160 }}>
+                  <div style={{ fontSize: 22, marginBottom: 2 }}>{a.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>{a.title}</div>
+                  <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 2 }}>{a.description}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </Card>
-      )}
+          )}
 
-      {report.recommendations?.length > 0 && (
-        <Card style={{ marginBottom: 20 }}>
-          <SectionLabel>Recomendações para a próxima aula</SectionLabel>
-          <ul style={{ fontSize: 13.5, margin: 0, paddingLeft: 18 }}>
-            {report.recommendations.map((r: string, i: number) => (
-              <li key={i} style={{ marginBottom: 4 }}>
-                {r}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+          {topic?.title && (
+            <div style={{ marginBottom: 20 }}>
+              <SectionLabel>Tema de hoje</SectionLabel>
+              <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 17 }}>{topic.title}</div>
+            </div>
+          )}
 
-      <ShareResultButton
-        topicTitle={topic?.title || "Aula de inglês"}
-        topicKind={topic?.kind}
-        level={level || ""}
-        overall={typeof report.scores?.overall === "number" ? report.scores.overall : null}
-        bySkill={report.bySkill || {}}
-      />
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+            <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)" }}>
+              Por habilidade
+            </span>
+            {Object.entries(SKILL_META).map(([key, meta]: any) => {
+              const s = report.bySkill?.[key];
+              return (
+                <div key={key} style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600 }}>
+                      {meta.icon} {meta.label}
+                    </span>
+                    <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 13, fontWeight: 600, color: s ? scoreBarColor(s.score) : "var(--muted)", textTransform: "capitalize" }}>
+                      {s ? s.score : "Sem dados"}
+                    </span>
+                  </div>
+                  <div style={{ height: 10, borderRadius: 999, background: "#e6e1d4", overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 999, background: s ? scoreBarColor(s.score) : "#e6e1d4", width: `${s ? scoreBarPct(s.score) : 0}%` }} />
+                  </div>
+                  {s?.note && <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 12.5, color: "var(--muted)", lineHeight: 1.4 }}>{s.note}</span>}
+                </div>
+              );
+            })}
+          </div>
 
-      <Button onClick={onRestart} style={{ width: "100%", padding: "12px 0" }}>
-        Nova aula
-      </Button>
+          {log.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+              <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)" }}>
+                Para praticar amanhã
+              </span>
+              {log.map((l: any, i: number) => (
+                <div key={i} style={{ borderRadius: 16, background: "#fffdf7", border: "1px solid rgba(16,20,58,.09)", padding: "15px 16px", display: "flex", flexDirection: "column", gap: 7 }}>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.03em", color: SKILL_TAG_COLOR[l.skill] || "var(--mustard-dark)", textTransform: "uppercase" }}>
+                    {l.skill} · {l.area}
+                  </span>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 13.5, lineHeight: 1.45, color: "#4a4636" }}>{l.note}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {report.recurringDifficulties?.length > 0 && (
+            <Card style={{ marginBottom: 20 }}>
+              <SectionLabel>Dificuldades recorrentes</SectionLabel>
+              <ul style={{ fontSize: 13.5, margin: 0, paddingLeft: 18 }}>
+                {report.recurringDifficulties.map((d: string, i: number) => (
+                  <li key={i} style={{ marginBottom: 4 }}>
+                    {d}
+                  </li>
+                ))}
+              </ul>
+              <div style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: "var(--sage)", marginTop: 10 }}>
+                Cada erro aqui é semente, não falha, porque mostra exatamente onde focar amanhã.
+              </div>
+            </Card>
+          )}
+
+          {report.recommendations?.length > 0 && (
+            <Card style={{ marginBottom: 20 }}>
+              <SectionLabel>Recomendações para a próxima aula</SectionLabel>
+              <ul style={{ fontSize: 13.5, margin: 0, paddingLeft: 18 }}>
+                {report.recommendations.map((r: string, i: number) => (
+                  <li key={i} style={{ marginBottom: 4 }}>
+                    {r}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <ShareResultButton
+              topicTitle={topic?.title || "Aula de inglês"}
+              topicKind={topic?.kind}
+              level={level || ""}
+              overall={overall}
+              bySkill={report.bySkill || {}}
+            />
+            <PhysicalButton onClick={onRestart} background="var(--card)" color="#283758" shadowColor="rgba(16,20,58,.16)" style={{ border: "1.5px solid rgba(16,20,58,.16)", boxShadow: "none" }}>
+              Nova aula
+            </PhysicalButton>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

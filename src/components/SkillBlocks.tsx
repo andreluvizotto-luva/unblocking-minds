@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, Button, SectionLabel, useCloudSpeech, useAudioRecorder, ProcessingAnimation, playAdvanceSound, playCheckSound } from "./ui";
+import { Card, Button, SectionLabel, PhysicalButton, useCloudSpeech, useAudioRecorder, ProcessingAnimation, playAdvanceSound, playCheckSound } from "./ui";
 import { BreathingRitual } from "./BreathingRitual";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -166,16 +166,27 @@ function ReadingRecapToggle({ reading }: { reading?: any }) {
   );
 }
 
+// Estimativa simples de tempo de leitura (130 palavras/min é uma leitura
+// pausada — condizente com quem está aprendendo o idioma, não lendo nativo).
+function estimateReadMinutes(text: string) {
+  const words = (text || "").trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(2, Math.round(words / 130));
+}
+
 // ---------- Reading ----------
 export function ReadingBlock({
   sessionId,
   data,
+  topicTitle,
+  nextLabel,
   onDifficulty,
   onNext,
   isLast,
 }: {
   sessionId: string;
   data: any;
+  topicTitle?: string;
+  nextLabel?: string;
   onDifficulty: (d: Difficulty) => void;
   onNext: () => void;
   isLast: boolean;
@@ -183,10 +194,14 @@ export function ReadingBlock({
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [checked, setChecked] = useState(false);
 
+  const questions = data.questions || [];
+  const answered = questions.length > 0 && questions.every((_: any, i: number) => answers[i] !== undefined);
+  const readMinutes = estimateReadMinutes(data.isComparison ? `${data.textA?.text || ""} ${data.textB?.text || ""}` : data.text);
+
   async function check() {
     playCheckSound();
-    for (let i = 0; i < data.questions.length; i++) {
-      const q = data.questions[i];
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
       if (answers[i] !== q.answerIndex) {
         const note = `Errou: "${q.q}"`;
         onDifficulty({ skill: "Leitura", area: q.area || "compreensão", note });
@@ -196,73 +211,206 @@ export function ReadingBlock({
     setChecked(true);
   }
 
+  function handlePrimary() {
+    if (!answered) return;
+    if (!checked) {
+      check();
+    } else {
+      playAdvanceSound();
+      onNext();
+    }
+  }
+
+  const primaryLabel = checked
+    ? isLast
+      ? "Ver relatório da aula →"
+      : `Próxima habilidade${nextLabel ? `: ${nextLabel}` : ""} →`
+    : answered
+    ? "Conferir respostas"
+    : "Escolha uma resposta em cada pergunta";
+  const primaryBg = checked ? "#283758" : answered ? "var(--teal)" : "#e2ddd0";
+  const primaryInk = checked ? "var(--ink-on-dark)" : answered ? "var(--ink)" : "#5d5849";
+  const primaryShadow = checked ? "#10143a" : answered ? "var(--mustard)" : "#d3ccbc";
+  const footHint = checked
+    ? "Suas respostas ficam salvas no relatório do fim da aula."
+    : "Sem pressa — você pode revisar antes de conferir.";
+
   return (
     <div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
+        <span
+          style={{
+            fontFamily: "'Work Sans', sans-serif",
+            fontSize: 10.5,
+            fontWeight: 600,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--mustard-dark)",
+          }}
+        >
+          Leitura · {readMinutes} min
+        </span>
+        {topicTitle && (
+          <h2 style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontSize: 25, lineHeight: 1.18, fontWeight: 600, letterSpacing: "-0.02em" }}>
+            {topicTitle}
+          </h2>
+        )}
+      </div>
+
       {data.isComparison ? (
         <>
-          <Card style={{ marginBottom: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
             <SectionLabel>{data.textA?.label || "Texto A"}</SectionLabel>
-            <p style={{ fontSize: 15, lineHeight: 1.7, fontFamily: "'Poppins', sans-serif", margin: 0 }}>{data.textA?.text}</p>
-          </Card>
-          <Card style={{ marginBottom: 14 }}>
+            <div style={{ borderLeft: "4px solid var(--sage)", background: "rgba(79,98,72,.09)", borderRadius: "0 16px 16px 0", padding: "18px 18px 18px 16px" }}>
+              <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.62, fontFamily: "'Work Sans', sans-serif", color: "#1d2340" }}>{data.textA?.text}</p>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
             <SectionLabel>{data.textB?.label || "Texto B"}</SectionLabel>
-            <p style={{ fontSize: 15, lineHeight: 1.7, fontFamily: "'Poppins', sans-serif", margin: 0 }}>{data.textB?.text}</p>
-          </Card>
-          <div style={{ fontSize: 12.5, color: "var(--muted-on-dark)", marginBottom: 14 }}>
+            <div style={{ borderLeft: "4px solid var(--sage)", background: "rgba(79,98,72,.09)", borderRadius: "0 16px 16px 0", padding: "18px 18px 18px 16px" }}>
+              <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.62, fontFamily: "'Work Sans', sans-serif", color: "#1d2340" }}>{data.textB?.text}</p>
+            </div>
+          </div>
+          <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 14 }}>
             🔍 Compare os dois textos antes de responder — algumas perguntas pedem para identificar as diferenças entre eles.
           </div>
         </>
       ) : (
-        <Card style={{ marginBottom: 14 }}>
-          <p style={{ fontSize: 15.5, lineHeight: 1.7, fontFamily: "'Poppins', sans-serif" }}>{data.text}</p>
-        </Card>
+        <div style={{ borderLeft: "4px solid var(--sage)", background: "rgba(79,98,72,.09)", borderRadius: "0 16px 16px 0", padding: "18px 18px 18px 16px", marginBottom: 20 }}>
+          <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.62, fontFamily: "'Work Sans', sans-serif", color: "#1d2340" }}>{data.text}</p>
+        </div>
       )}
-      {data.questions.map((q: any, i: number) => {
-        const respondeuErrado = checked && answers[i] !== undefined && answers[i] !== q.answerIndex;
-        return (
-          <Card key={i} style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{q.q}</div>
-            {(q.options || []).map((opt: string, oi: number) => {
-              const isChosen = answers[i] === oi;
-              const isCorrect = checked && oi === q.answerIndex;
-              const isWrongChosen = checked && isChosen && oi !== q.answerIndex;
-              return (
-                <button
-                  key={oi}
-                  disabled={checked}
-                  onClick={() => setAnswers((a) => ({ ...a, [i]: oi }))}
+
+      <div style={{ height: 1, background: "rgba(16,20,58,.1)", marginBottom: 20 }} />
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {questions.map((q: any, i: number) => {
+          const isCorrectAnswer = checked && answers[i] === q.answerIndex;
+          const isWrongAnswer = checked && answers[i] !== undefined && answers[i] !== q.answerIndex;
+          return (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span
                   style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "8px 10px",
-                    marginBottom: 6,
-                    borderRadius: 3,
-                    fontSize: 13.5,
-                    cursor: checked ? "default" : "pointer",
-                    border:
-                      "1px solid " +
-                      (isCorrect ? "var(--teal)" : isWrongChosen ? "var(--wine)" : isChosen ? "var(--teal)" : "var(--line)"),
-                    background: isCorrect ? "#eaf0ec" : isWrongChosen ? "#f5e7e9" : isChosen ? "#eaf0ec" : "#fbf8f1",
+                    flexShrink: 0,
+                    width: 24,
+                    height: 24,
+                    marginTop: 1,
+                    borderRadius: 8,
+                    background: "#283758",
+                    color: "var(--ink-on-dark)",
+                    display: "grid",
+                    placeItems: "center",
+                    fontFamily: "'Work Sans', sans-serif",
+                    fontSize: 12,
+                    fontWeight: 600,
                   }}
                 >
-                  {opt}
-                </button>
-              );
-            })}
-            {respondeuErrado && (
-              <ExplanationNote text={q.explanation || `Resposta certa: ${q.options[q.answerIndex]}`} />
-            )}
-          </Card>
-        );
-      })}
-      {!checked ? (
-        <Button onClick={check} variant="ghost" style={{ width: "100%", padding: "11px 0" }}>
-          Conferir respostas
-        </Button>
-      ) : (
-        <NextButton onNext={onNext} isLast={isLast} />
-      )}
+                  {i + 1}
+                </span>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontSize: 17, lineHeight: 1.35, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                  {q.q}
+                </p>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                {(q.options || []).map((opt: string, oi: number) => {
+                  const isChosen = answers[i] === oi;
+                  const isCorrectOpt = checked && oi === q.answerIndex;
+                  const isWrongChosen = checked && isChosen && oi !== q.answerIndex;
+                  const isFadedWrong = checked && !isChosen && oi !== q.answerIndex;
+
+                  let bg = "#fffdf7", border = "rgba(16,20,58,.14)", badgeBg = "#efeade", badgeColor = "#7d7768";
+                  let textColor = "var(--ink)", textWeight = 400, mark: string = String.fromCharCode(65 + oi);
+                  if (!checked && isChosen) {
+                    bg = "rgba(246,160,23,.14)"; border = "var(--teal)"; badgeBg = "var(--teal)"; badgeColor = "var(--ink)"; textWeight = 600;
+                  }
+                  if (isCorrectOpt) {
+                    bg = "rgba(37,211,102,.16)"; border = "#1a7a44"; badgeBg = "#1a7a44"; badgeColor = "var(--ink-on-dark)"; mark = "✓"; textWeight = 600;
+                  }
+                  if (isWrongChosen) {
+                    bg = "rgba(194,54,83,.12)"; border = "var(--wine)"; badgeBg = "var(--wine)"; badgeColor = "var(--ink-on-dark)"; mark = "✕"; textColor = "#8d2438";
+                  }
+                  if (isFadedWrong) {
+                    textColor = "var(--muted)"; border = "rgba(16,20,58,.08)";
+                  }
+
+                  return (
+                    <button
+                      key={oi}
+                      disabled={checked}
+                      onClick={() => setAnswers((a) => ({ ...a, [i]: oi }))}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        textAlign: "left",
+                        width: "100%",
+                        minHeight: 58,
+                        padding: "12px 14px",
+                        borderRadius: isChosen || isCorrectOpt ? 18 : 16,
+                        border: `2px solid ${border}`,
+                        background: bg,
+                        cursor: checked ? "default" : "pointer",
+                        transition: "background .2s, border-color .2s, transform .12s",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          width: 30,
+                          height: 30,
+                          borderRadius: 999,
+                          background: badgeBg,
+                          color: badgeColor,
+                          display: "grid",
+                          placeItems: "center",
+                          fontFamily: "'Work Sans', sans-serif",
+                          fontSize: 13,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {mark}
+                      </span>
+                      <span style={{ fontSize: 15.5, lineHeight: 1.35, fontWeight: textWeight, color: textColor, fontFamily: "'Work Sans', sans-serif" }}>
+                        {opt}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {checked && (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    padding: "13px 15px",
+                    background: isCorrectAnswer ? "rgba(37,211,102,.14)" : "rgba(194,54,83,.1)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 3,
+                  }}
+                >
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 12.5, fontWeight: 600, letterSpacing: "0.02em", color: isCorrectAnswer ? "#14663a" : "#8d2438" }}>
+                    {isCorrectAnswer ? "Certo" : "Vamos de novo"}
+                  </span>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 13.5, lineHeight: 1.45, color: isCorrectAnswer ? "#14663a" : "#8d2438" }}>
+                    {isWrongAnswer ? q.explanation || `Resposta certa: ${q.options[q.answerIndex]}` : q.explanation || "Muito bem — você entendeu certinho essa parte do texto."}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 9 }}>
+        <PhysicalButton onClick={handlePrimary} disabled={!answered} background={primaryBg} color={primaryInk} shadowColor={primaryShadow}>
+          {primaryLabel}
+        </PhysicalButton>
+        <span style={{ textAlign: "center", fontFamily: "'Work Sans', sans-serif", fontSize: 12, color: "var(--muted)" }}>{footHint}</span>
+      </div>
     </div>
   );
 }
@@ -525,7 +673,7 @@ export function ListeningBlock({
         <>
           <AudioPlayerCard label={data.textA?.label || "Áudio A"} player={playerA} hasPlayed={playedA} onPlayed={() => setPlayedA(true)} />
           <AudioPlayerCard label={data.textB?.label || "Áudio B"} player={playerB} hasPlayed={playedB} onPlayed={() => setPlayedB(true)} />
-          <div style={{ fontSize: 12.5, color: "var(--muted-on-dark)", marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 14 }}>
             🔍 Ouça os dois áudios antes de responder — algumas perguntas pedem para identificar as diferenças entre eles.
           </div>
         </>
@@ -533,7 +681,7 @@ export function ListeningBlock({
         <AudioPlayerCard player={playerA} hasPlayed={playedA} onPlayed={() => setPlayedA(true)} />
       )}
       {falhouOAudio && (
-        <div style={{ fontSize: 12.5, color: "var(--muted-on-dark)", marginBottom: 14 }}>
+        <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 14 }}>
           O áudio não pôde ser gerado agora. Você pode tentar de novo no botão acima ou responder as
           perguntas abaixo assim mesmo para não travar a aula.
         </div>
