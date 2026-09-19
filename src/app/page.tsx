@@ -42,28 +42,28 @@ const TOPIC_KINDS = [
 
 const SKILL_ORDER = ["reading", "grammar", "listening", "speaking", "writing"];
 
-// Lockup oficial da marca: "+Unblocking" seguido da fagulha, sobrepondo
-// levemente o final do texto — nunca a logo antiga em PNG.
+// Lockup oficial da marca: "+Unblocking" seguido da fagulha, com um
+// espaço normal entre os dois (não sobrepõe o texto) — nunca a logo antiga
+// em PNG. Usa gap do flex em vez de margem negativa, então o espaçamento
+// acompanha o tamanho da fonte em qualquer largura de tela.
 function Lockup({ size = 20, color = "var(--ink-on-dark)" }: { size?: number; color?: string }) {
-  const sparkSize = Math.round(size * 1.2);
+  const sparkSize = Math.round(size * 1.05);
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
+        gap: Math.max(3, Math.round(size * 0.12)),
         fontFamily: "'Poppins', sans-serif",
         fontWeight: 600,
         fontSize: size,
         letterSpacing: "-0.01em",
         color,
+        minWidth: 0,
       }}
     >
-      +Unblocking
-      <img
-        src="/spark.png"
-        alt=""
-        style={{ width: sparkSize, height: sparkSize, marginLeft: -Math.round(size * 0.4), transform: `translateY(-${Math.round(size * 0.15)}px)` }}
-      />
+      <span style={{ whiteSpace: "nowrap" }}>+Unblocking</span>
+      <img src="/spark.png" alt="" style={{ width: sparkSize, height: sparkSize, flexShrink: 0 }} />
     </span>
   );
 }
@@ -635,9 +635,9 @@ export default function HomePage() {
                   <span style={{ width: 5, height: 5, borderRadius: 999, background: "var(--sage)" }} />
                   <span>5 habilidades · cerca de 15-20 minutos</span>
                 </div>
-                <PhysicalButton onClick={startSession} background="var(--teal)" color="var(--ink)" shadowColor="var(--mustard)">
-                  Começar aula de hoje
-                  <img src="/spark.png" alt="" style={{ width: 36, height: 36, marginLeft: -8, transform: "translateY(-3px)", filter: "brightness(0) saturate(100%)" }} />
+                <PhysicalButton onClick={startSession} background="var(--teal)" color="var(--ink)" shadowColor="var(--mustard)" style={{ gap: 8 }}>
+                  <span>Começar aula de hoje</span>
+                  <img src="/spark.png" alt="" style={{ width: 22, height: 22, flexShrink: 0, filter: "brightness(0) saturate(100%)" }} />
                 </PhysicalButton>
               </div>
             ) : (
@@ -792,9 +792,9 @@ function ReportView({ loading, report, topic, level, onRestart, log }: any) {
           {(streak?.currentStreak > 0 || unlockedAchievements.length > 0) && (
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", paddingTop: 2 }}>
               {streak?.currentStreak > 0 && (
-                <span style={{ display: "flex", alignItems: "center", padding: "8px 14px", borderRadius: 999, background: "rgba(246,160,23,.18)", border: "1px solid rgba(246,160,23,.45)", fontFamily: "'Work Sans', sans-serif", fontSize: 12.5, fontWeight: 600, color: "var(--teal)" }}>
-                  {streak.currentStreak} {streak.currentStreak === 1 ? "dia seguido" : "dias seguidos"}
-                  <img src="/spark.png" alt="" style={{ width: 26, height: 26, marginLeft: -6, transform: "translateY(-2px)" }} />
+                <span style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 999, background: "rgba(246,160,23,.18)", border: "1px solid rgba(246,160,23,.45)", fontFamily: "'Work Sans', sans-serif", fontSize: 12.5, fontWeight: 600, color: "var(--teal)" }}>
+                  <span>{streak.currentStreak} {streak.currentStreak === 1 ? "dia seguido" : "dias seguidos"}</span>
+                  <img src="/spark.png" alt="" style={{ width: 16, height: 16, flexShrink: 0 }} />
                 </span>
               )}
               {unlockedAchievements.length > 0 && (
