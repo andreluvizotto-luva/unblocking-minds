@@ -197,10 +197,10 @@ create table if not exists public.achievements (
 insert into public.achievements (code, title, description, icon, sort_order) values
   ('first_session', 'Primeiro passo', 'Concluiu a primeira aula de prática.', '🌱', 1),
   ('streak_3', 'Três dias seguidos', 'Praticou 3 dias seguidos.', '🔥', 2),
-  ('streak_7', 'Uma semana de constância', 'Praticou 7 dias seguidos.', '🔥', 3),
-  ('streak_30', 'Um mês de constância', 'Praticou 30 dias seguidos.', '🔥', 4),
+  ('streak_7', 'Uma semana de constância', 'Praticou 7 dias seguidos.', '🌟', 3),
+  ('streak_30', 'Um mês de constância', 'Praticou 30 dias seguidos.', '👑', 4),
   ('sessions_10', '10 aulas concluídas', 'Completou 10 aulas de prática.', '📚', 5),
-  ('sessions_50', '50 aulas concluídas', 'Completou 50 aulas de prática.', '📚', 6),
+  ('sessions_50', '50 aulas concluídas', 'Completou 50 aulas de prática.', '🏆', 6),
   ('score_9', 'Nota de destaque', 'Alcançou nota geral acima de 9 em uma aula.', '⭐', 7),
   ('all_strong', 'Cinco pontos fortes', 'Teve as 5 habilidades avaliadas como fortes na mesma aula.', '💪', 8),
   ('level_up', 'Subiu de nível', 'Avançou para um novo nível de CEFR.', '🚀', 9)
