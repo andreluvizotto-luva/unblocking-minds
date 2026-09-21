@@ -54,10 +54,10 @@ function deriveSkillOrder(content: any): string[] {
 // Leitura já inclui a interpretação (sempre foram a mesma habilidade no
 // app); Escuta+Fala e Escrita+Gramática combinam pares que se apoiam.
 const LESSON_FORMATS = [
-  { id: "full", label: "Aula completa", skills: ALL_SKILLS, minutes: "15-20 min" },
   { id: "reading", label: "Leitura + Interpretação", skills: ["reading"], minutes: "4-6 min" },
   { id: "listening_speaking", label: "Listening + Speaking", skills: ["listening", "speaking"], minutes: "7-10 min" },
   { id: "writing_grammar", label: "Writing + Grammar", skills: ["writing", "grammar"], minutes: "7-10 min" },
+  { id: "full", label: "Aula completa", skills: ALL_SKILLS, minutes: "15-20 min" },
 ];
 
 // Lockup oficial da marca: "+Unblocking" seguido da fagulha, com um
@@ -139,7 +139,7 @@ export default function HomePage() {
   const [studentName, setStudentName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [topicKind, setTopicKind] = useState("news");
-  const [format, setFormat] = useState("full");
+  const [format, setFormat] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -202,7 +202,7 @@ export default function HomePage() {
   }
 
   async function startSession() {
-    if (!level) return;
+    if (!level || !format) return;
     setError("");
     setStage("loading");
     try {
@@ -667,7 +667,7 @@ export default function HomePage() {
                     Aula de hoje · {LEVEL_LABELS[level] || level}
                   </span>
                   <h2 style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontSize: 22, lineHeight: 1.2, fontWeight: 600, letterSpacing: "-0.015em", color: "var(--ink)" }}>
-                    Pronta quando você estiver
+                    {format ? "Pronta quando você estiver" : "Escolha um formato acima"}
                   </h2>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -680,20 +680,31 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Work Sans', sans-serif", fontSize: 13, color: "#5d5849" }}>
-                  <span style={{ width: 5, height: 5, borderRadius: 999, background: "var(--sage)" }} />
-                  {(() => {
-                    const chosen = LESSON_FORMATS.find((f) => f.id === format) || LESSON_FORMATS[0];
-                    return (
-                      <span>
-                        {chosen.skills.length} habilidade{chosen.skills.length > 1 ? "s" : ""} · cerca de {chosen.minutes}
-                      </span>
-                    );
-                  })()}
-                </div>
-                <PhysicalButton onClick={startSession} background="var(--teal)" color="var(--ink)" shadowColor="var(--mustard)" style={{ gap: 8 }}>
-                  <span>Começar aula de hoje</span>
-                  <img src="/spark.png" alt="" style={{ width: 22, height: 22, flexShrink: 0, filter: "brightness(0) saturate(100%)" }} />
+                {format && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Work Sans', sans-serif", fontSize: 13, color: "#5d5849" }}>
+                    <span style={{ width: 5, height: 5, borderRadius: 999, background: "var(--sage)" }} />
+                    {(() => {
+                      const chosen = LESSON_FORMATS.find((f) => f.id === format)!;
+                      return (
+                        <span>
+                          {chosen.skills.length} habilidade{chosen.skills.length > 1 ? "s" : ""} · cerca de {chosen.minutes}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                )}
+                <PhysicalButton
+                  onClick={startSession}
+                  disabled={!format}
+                  background={format ? "var(--teal)" : "#e2ddd0"}
+                  color={format ? "var(--ink)" : "#5d5849"}
+                  shadowColor={format ? "var(--mustard)" : "#d3ccbc"}
+                  style={{ gap: 8 }}
+                >
+                  <span>{format ? "Começar aula de hoje" : "Escolha um formato para começar"}</span>
+                  {format && (
+                    <img src="/spark.png" alt="" style={{ width: 22, height: 22, flexShrink: 0, filter: "brightness(0) saturate(100%)" }} />
+                  )}
                 </PhysicalButton>
               </div>
             ) : (
