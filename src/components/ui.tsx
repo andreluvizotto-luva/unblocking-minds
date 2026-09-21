@@ -140,7 +140,7 @@ export function Spark({ size = 16, style }: { size?: number; color?: string; sty
 // "vibe" da marca — o verbo "destravar" é o coração do nome +Unblocking.
 const DEFAULT_PROCESSING_MESSAGES = [
   "Destravando novas ideias para você…",
-  "Conectando as palavras certas…",
+  "Speed up guys! Conectando as palavras certas…",
   "Ajustando o nível certinho pro seu momento…",
   "Preparando o seu próximo desbloqueio…",
   "Quase lá — só mais um instante…",

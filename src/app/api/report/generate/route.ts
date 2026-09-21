@@ -43,26 +43,33 @@ export async function POST(req: Request) {
     (difficulties || []).map((d) => `${d.skill} | ${d.area} | ${d.note}`).join("\n") ||
     "(nenhuma dificuldade registrada, desempenho consistente)";
 
-  const prompt = `Um estudante de inglês nível CEFR ${session.level} completou uma aula de estudo sobre o tema "${session.topic_title}". Durante a aula foram registradas as seguintes dificuldades (uma por linha, formato skill | área | observação):
+  // A aula pode ter sido um formato parcial (ver FORMAT_SKILLS em
+  // session/generate/route.ts) — só pedimos nota das habilidades que de
+  // fato têm conteúdo gravado em sessions.content. Pedir nota de uma
+  // habilidade que o aluno nunca viu faria a Claude inventar uma avaliação
+  // do nada, e isso também corromperia a dificuldade adaptativa (ver
+  // skill-difficulty.ts).
+  const SKILL_LABELS: Record<string, string> = {
+    reading: "leitura",
+    grammar: "gramática (desafios de preenchimento de lacunas)",
+    listening: "escuta",
+    speaking: "fala",
+    writing: "escrita",
+  };
+  const presentSkills = Object.keys(SKILL_LABELS).filter((s) => session.content?.[s]);
+
+  const prompt = `Um estudante de inglês nível CEFR ${session.level} completou uma aula de estudo sobre o tema "${session.topic_title}", cobrindo as habilidades: ${presentSkills.join(", ")}. Durante a aula foram registradas as seguintes dificuldades (uma por linha, formato skill | área | observação):
 ${logLines}
 
 Gere um relatório em JSON com esta forma:
 {
   "summary": "2-3 frases em português, no tom próximo e humanizado da Unblocking Minds, falando diretamente com o aluno sobre o desempenho geral no nível ${session.level}",
   "bySkill": {
-    "reading": {"score": "forte|adequado|a desenvolver", "note": "1 frase em português"},
-    "grammar": {"score": "forte|adequado|a desenvolver", "note": "..."},
-    "listening": {"score": "forte|adequado|a desenvolver", "note": "..."},
-    "speaking": {"score": "forte|adequado|a desenvolver", "note": "..."},
-    "writing": {"score": "forte|adequado|a desenvolver", "note": "..."}
+${presentSkills.map((s) => `    "${s}": {"score": "forte|adequado|a desenvolver", "note": "1 frase em português sobre ${SKILL_LABELS[s]}"}`).join(",\n")}
   },
   "scores": {
-    "reading": número de 0 a 10 (uma casa decimal, ex: 7.5) avaliando o desempenho em leitura nesta aula,
-    "grammar": número de 0 a 10 para gramática (desafios de preenchimento de lacunas),
-    "listening": número de 0 a 10 para escuta,
-    "speaking": número de 0 a 10 para fala,
-    "writing": número de 0 a 10 para escrita,
-    "overall": número de 0 a 10, média ponderada das cinco notas acima
+${presentSkills.map((s) => `    "${s}": número de 0 a 10 (uma casa decimal, ex: 7.5) avaliando o desempenho em ${SKILL_LABELS[s]} nesta aula`).join(",\n")},
+    "overall": número de 0 a 10, média das notas informadas acima (${presentSkills.length} habilidade${presentSkills.length > 1 ? "s" : ""})
   },
   "recurringDifficulties": ["área 1", "área 2"],
   "recommendations": ["recomendação prática 1 em português, tom acolhedor e direto", "recomendação 2", "recomendação 3"]

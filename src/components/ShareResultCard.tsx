@@ -509,7 +509,10 @@ export async function buildShareImageDataUrl(params: {
   const cardW = (gridW - gap) / 2;
   const cardH = 110;
   const gridLeft = (W - gridW) / 2;
-  const keys = Object.keys(SKILL_META);
+  // Aula pode ter sido um formato parcial — só mostra cartão das habilidades
+  // que de fato tiveram nota, senão a imagem compartilhada mostraria
+  // "Sem dados" para habilidades que nem fizeram parte da aula.
+  const keys = Object.keys(SKILL_META).filter((k) => params.bySkill?.[k]);
   const rows = Math.ceil(keys.length / 2);
   keys.forEach((key, i) => {
     const col = i % 2;

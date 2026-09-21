@@ -40,7 +40,25 @@ const TOPIC_KINDS = [
   { id: "astrology", label: "Astrologia" },
 ];
 
-const SKILL_ORDER = ["reading", "grammar", "listening", "speaking", "writing"];
+// Ordem canônica das 5 habilidades. Uma aula pode não ter todas — o formato
+// escolhido decide quais entram (ver FORMAT_SKILLS) — então o pedido real de
+// cada aula é sempre derivado do conteúdo gerado (deriveSkillOrder), nunca
+// assumido como "as 5 sempre".
+const ALL_SKILLS = ["reading", "grammar", "listening", "speaking", "writing"];
+
+function deriveSkillOrder(content: any): string[] {
+  return ALL_SKILLS.filter((k) => content && content[k]);
+}
+
+// Mesmos formatos que /api/session/generate aceita (ver FORMAT_SKILLS lá).
+// Leitura já inclui a interpretação (sempre foram a mesma habilidade no
+// app); Escuta+Fala e Escrita+Gramática combinam pares que se apoiam.
+const LESSON_FORMATS = [
+  { id: "full", label: "Aula completa", skills: ALL_SKILLS, minutes: "15-20 min" },
+  { id: "reading", label: "Leitura + Interpretação", skills: ["reading"], minutes: "4-6 min" },
+  { id: "listening_speaking", label: "Listening + Speaking", skills: ["listening", "speaking"], minutes: "7-10 min" },
+  { id: "writing_grammar", label: "Writing + Grammar", skills: ["writing", "grammar"], minutes: "7-10 min" },
+];
 
 // Lockup oficial da marca: "+Unblocking" seguido da fagulha, com um
 // espaço normal entre os dois (não sobrepõe o texto) — nunca a logo antiga
@@ -68,12 +86,13 @@ function Lockup({ size = 20, color = "var(--ink-on-dark)" }: { size?: number; co
   );
 }
 
-// Trilha de progresso das 5 habilidades — a habilidade atual expande e
-// mostra o nome completo, as demais colapsam para a abreviação de 4 letras.
-function SkillTrack({ skillIdx }: { skillIdx: number }) {
+// Trilha de progresso das habilidades desta aula (pode ser 1, 2 ou 5,
+// dependendo do formato escolhido) — a atual expande e mostra o nome
+// completo, as demais colapsam para a abreviação de 4 letras.
+function SkillTrack({ skillIdx, skillOrder }: { skillIdx: number; skillOrder: string[] }) {
   return (
     <div style={{ display: "flex", gap: 5, alignItems: "flex-end" }}>
-      {SKILL_ORDER.map((key, i) => {
+      {skillOrder.map((key, i) => {
         const meta = SKILL_META[key];
         const done = i < skillIdx;
         const current = i === skillIdx;
@@ -120,6 +139,7 @@ export default function HomePage() {
   const [studentName, setStudentName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [topicKind, setTopicKind] = useState("news");
+  const [format, setFormat] = useState("full");
   const [error, setError] = useState("");
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -189,7 +209,7 @@ export default function HomePage() {
       const res = await fetch("/api/session/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topicKind }),
+        body: JSON.stringify({ topicKind, format }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -288,7 +308,8 @@ export default function HomePage() {
   }
 
   function nextSkill() {
-    if (skillIdx < SKILL_ORDER.length - 1) {
+    const order = deriveSkillOrder(content);
+    if (skillIdx < order.length - 1) {
       const proximo = skillIdx + 1;
       setSkillIdx(proximo);
       // Grava o avanço em segundo plano: assim, mesmo que o aluno feche a
@@ -341,9 +362,10 @@ export default function HomePage() {
 
   if (checkingAuth) return null;
 
-  const currentSkill = SKILL_ORDER[skillIdx];
+  const skillOrder = deriveSkillOrder(content);
+  const currentSkill = skillOrder[skillIdx];
 
-  const nextSkillLabel = skillIdx < SKILL_ORDER.length - 1 ? SKILL_META[SKILL_ORDER[skillIdx + 1]].label : undefined;
+  const nextSkillLabel = skillIdx < skillOrder.length - 1 ? SKILL_META[skillOrder[skillIdx + 1]].label : undefined;
 
   if (stage === "session" && content && sessionId) {
     return (
@@ -359,10 +381,10 @@ export default function HomePage() {
                 Terminar depois
               </button>
               <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 12, fontWeight: 600, color: "var(--ink-on-dark)", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
-                {skillIdx + 1} de {SKILL_ORDER.length} · {SKILL_META[currentSkill].label}
+                {skillIdx + 1} de {skillOrder.length} · {SKILL_META[currentSkill].label}
               </span>
             </div>
-            <SkillTrack skillIdx={skillIdx} />
+            <SkillTrack skillIdx={skillIdx} skillOrder={skillOrder} />
           </div>
         </div>
 
@@ -376,20 +398,20 @@ export default function HomePage() {
                 nextLabel={nextSkillLabel}
                 onDifficulty={addLog}
                 onNext={nextSkill}
-                isLast={skillIdx === SKILL_ORDER.length - 1}
+                isLast={skillIdx === skillOrder.length - 1}
               />
             )}
             {currentSkill === "grammar" && (
-              <GrammarBlock sessionId={sessionId} data={content.grammar} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
+              <GrammarBlock sessionId={sessionId} data={content.grammar} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === skillOrder.length - 1} />
             )}
             {currentSkill === "listening" && (
-              <ListeningBlock sessionId={sessionId} data={content.listening} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
+              <ListeningBlock sessionId={sessionId} data={content.listening} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === skillOrder.length - 1} />
             )}
             {currentSkill === "speaking" && (
-              <SpeakingBlock sessionId={sessionId} level={level} data={content.speaking} readingRecap={content.reading} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
+              <SpeakingBlock sessionId={sessionId} level={level} data={content.speaking} readingRecap={content.reading} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === skillOrder.length - 1} />
             )}
             {currentSkill === "writing" && (
-              <WritingBlock sessionId={sessionId} level={level} data={content.writing} readingRecap={content.reading} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === SKILL_ORDER.length - 1} />
+              <WritingBlock sessionId={sessionId} level={level} data={content.writing} readingRecap={content.reading} onDifficulty={addLog} onNext={nextSkill} isLast={skillIdx === skillOrder.length - 1} />
             )}
 
             {/* Sair da aula: guardando o progresso, ou descartando tudo. */}
@@ -531,6 +553,32 @@ export default function HomePage() {
               </div>
             </Card>
 
+            <Card style={{ marginBottom: 20 }}>
+              <SectionLabel>Formato da aula</SectionLabel>
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                {LESSON_FORMATS.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setFormat(f.id)}
+                    style={{
+                      cursor: "pointer",
+                      borderRadius: 20,
+                      padding: "8px 16px",
+                      fontSize: 13.5,
+                      fontWeight: 500,
+                      transition: "transform 0.12s ease, background 0.12s ease",
+                      transform: format === f.id ? "scale(1.04)" : "none",
+                      border: format === f.id ? "1px solid var(--teal)" : "1px solid var(--line)",
+                      background: format === f.id ? "var(--teal)" : "#fbf8f1",
+                      color: "var(--ink)",
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </Card>
+
             {error && <div style={{ color: "var(--wine)", fontSize: 13.5, marginBottom: 12 }}>{error}</div>}
 
             {level && pending ? (
@@ -547,7 +595,8 @@ export default function HomePage() {
                     <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 12.5, color: "var(--muted-on-dark)" }}>
                       Nível {pending.level} · parou em{" "}
                       {(() => {
-                        const meta = SKILL_META[SKILL_ORDER[pending.skillIndex || 0]];
+                        const pendingOrder = deriveSkillOrder(pending.content);
+                        const meta = SKILL_META[pendingOrder[pending.skillIndex || 0]];
                         return meta ? `${meta.label.toLowerCase()} · ${meta.labelEn.toLowerCase()}` : "leitura · reading";
                       })()}
                     </span>
@@ -622,7 +671,7 @@ export default function HomePage() {
                   </h2>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  {SKILL_ORDER.map((key) => (
+                  {(LESSON_FORMATS.find((f) => f.id === format)?.skills || ALL_SKILLS).map((key) => (
                     <div key={key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                       <span style={{ width: "100%", height: 5, borderRadius: 999, background: "#e2ddd0" }} />
                       <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 9.5, color: "#7d7768", letterSpacing: "0.02em" }}>
@@ -633,7 +682,14 @@ export default function HomePage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Work Sans', sans-serif", fontSize: 13, color: "#5d5849" }}>
                   <span style={{ width: 5, height: 5, borderRadius: 999, background: "var(--sage)" }} />
-                  <span>5 habilidades · cerca de 15-20 minutos</span>
+                  {(() => {
+                    const chosen = LESSON_FORMATS.find((f) => f.id === format) || LESSON_FORMATS[0];
+                    return (
+                      <span>
+                        {chosen.skills.length} habilidade{chosen.skills.length > 1 ? "s" : ""} · cerca de {chosen.minutes}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <PhysicalButton onClick={startSession} background="var(--teal)" color="var(--ink)" shadowColor="var(--mustard)" style={{ gap: 8 }}>
                   <span>Começar aula de hoje</span>
@@ -684,9 +740,11 @@ export default function HomePage() {
               title="Preparando sua aula…"
               messages={[
                 "Escolhendo um tema que combina com você…",
+                "Speed up guys! Quase lá…",
                 "Destravando novas palavras para hoje…",
+                "O inglês é para ontem — já estamos nessa…",
                 "Montando os exercícios de cada habilidade…",
-                "Calibrando a dificuldade certa pro seu nível…",
+                "Let's go! Calibrando a dificuldade certa pro seu nível…",
                 "Preparando o seu próximo desbloqueio…",
               ]}
             />
@@ -729,9 +787,9 @@ function ReportView({ loading, report, topic, level, onRestart, log }: any) {
               title="Gerando relatório da aula…"
               messages={[
                 "Revendo cada resposta com carinho…",
-                "Separando o que já está redondo…",
+                "Good job! Separando o que já está redondo…",
                 "Encontrando o que vale destravar amanhã…",
-                "Contando seus pontos fortes de hoje…",
+                "Erro é semente, não falha — contando os seus pontos fortes de hoje…",
                 "Deixando tudo prontinho pra você ver…",
               ]}
             />
@@ -767,6 +825,9 @@ function ReportView({ loading, report, topic, level, onRestart, log }: any) {
   const overall = typeof report.scores?.overall === "number" ? report.scores.overall : null;
   const streak = report.streak;
   const unlockedAchievements = report.unlockedAchievements || [];
+  // Aula pode ter sido um formato parcial — só existe nota de quem entrou
+  // na aula (ver presentSkills em report/generate/route.ts).
+  const presentSkills = ALL_SKILLS.filter((k) => report.bySkill && k in report.bySkill);
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -784,7 +845,7 @@ function ReportView({ loading, report, topic, level, onRestart, log }: any) {
               <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 15, lineHeight: 1.3, color: "var(--muted-on-dark)", paddingBottom: 9 }}>
                 nota geral da aula
                 <br />
-                nas cinco habilidades
+                {presentSkills.length > 1 ? `nas ${presentSkills.length} habilidades` : "na habilidade praticada"}
               </span>
             </div>
           )}
@@ -832,7 +893,8 @@ function ReportView({ loading, report, topic, level, onRestart, log }: any) {
             <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)" }}>
               Por habilidade
             </span>
-            {Object.entries(SKILL_META).map(([key, meta]: any) => {
+            {presentSkills.map((key) => {
+              const meta = SKILL_META[key];
               const s = report.bySkill?.[key];
               return (
                 <div key={key} style={{ display: "flex", flexDirection: "column", gap: 7 }}>

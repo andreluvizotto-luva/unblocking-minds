@@ -27,6 +27,16 @@ export async function updateSkillDifficulty(
 
   for (const skill of SKILLS) {
     const row = rowBySkill.get(skill) || { consecutive_strong: 0, difficulty_percent: 0 };
+
+    // Aula em formato parcial (ex: só Escrita+Gramática) não inclui essa
+    // habilidade — isso não é o mesmo que ter ido mal nela. Sem essa checagem,
+    // qualquer aula que não passasse por uma habilidade zerava a sequência
+    // acumulada dela, mesmo o aluno nunca tendo tido chance de praticá-la.
+    if (!(skill in (bySkill || {}))) {
+      result[skill] = row.difficulty_percent;
+      continue;
+    }
+
     const isStrong = bySkill?.[skill]?.score === "forte";
     const consecutive = isStrong ? row.consecutive_strong + 1 : 0;
     let difficulty = row.difficulty_percent;

@@ -6,12 +6,26 @@ import { getSkillDifficulty } from "@/lib/skill-difficulty";
 import { requireActiveUser } from "@/lib/require-active-user";
 import { embaralharAlternativas } from "@/lib/embaralhar-alternativas";
 
+// Formatos de aula: em vez da aula completa (5 habilidades), o aluno pode
+// pedir um recorte mais curto. As duplas foram escolhidas pra fazer sentido
+// como prática isolada: Leitura já inclui a interpretação (são a mesma
+// habilidade no app, nunca foram duas etapas separadas); Escuta+Fala e
+// Escrita+Gramática combinam habilidades que se apoiam uma na outra.
+const FORMAT_SKILLS: Record<string, string[]> = {
+  full: ["reading", "grammar", "listening", "speaking", "writing"],
+  reading: ["reading"],
+  listening_speaking: ["listening", "speaking"],
+  writing_grammar: ["writing", "grammar"],
+};
+
 export async function POST(req: Request) {
-  const { topicKind } = await req.json();
+  const { topicKind, format } = await req.json();
 
   if (!topicKind) {
     return NextResponse.json({ error: "topicKind é obrigatório" }, { status: 400 });
   }
+
+  const skills = FORMAT_SKILLS[format] || FORMAT_SKILLS.full;
 
   const supabase = supabaseServer();
   const check = await requireActiveUser(supabase);
@@ -116,6 +130,49 @@ export async function POST(req: Request) {
     ] (gere 2 a 3 itens, com frases extraídas literalmente do texto de listening, para o aluno completar depois de ouvir o áudio)
   }`;
 
+  // Só entram no schema pedido à Claude as habilidades deste formato — além
+  // de cortar tokens, evita gerar (e a Claude "inventar") conteúdo de uma
+  // habilidade que o aluno não pediu.
+  const schemaParts: string[] = [
+    `  "topic": {"kind": "...", "title": "...", "blurb": "1-2 frases de contexto em português, linguagem simples e fluida, sem usar travessão"}`,
+  ];
+  if (skills.includes("reading")) schemaParts.push(`  "reading": ${readingSchema}`);
+  if (skills.includes("grammar")) {
+    schemaParts.push(`  "grammar": {
+    "instructions": "1 frase em português explicando a tarefa de preencher lacunas de gramática, sobre o tema do dia",
+    "items": [
+      {
+        "before": "início da frase em inglês, até onde entra a lacuna",
+        "after": "resto da frase em inglês, depois da lacuna (pode ser vazio)",
+        "options": ["opção a", "opção b", "opção c", "opção d"],
+        "answerIndex": 0,
+        "area": "ponto gramatical específico avaliado nesse item, em português, ex: passado simples, preposições, artigos, comparativos",
+        "explanation": "explicação pedagógica breve em português (1-2 frases), no tom acolhedor da Unblocking Minds: trate o erro como parte natural do aprendizado, explique por que aquela é a forma correta e o que costuma confundir na errada, sem jargão técnico, sem travessão"
+      }
+    ] (gere de 4 a 6 itens, cobrindo pontos gramaticais variados e calibrados para o nível ${level}, relacionados ao tema do dia sempre que possível.${difficultyNote("grammar", "Gramática")})
+  }`);
+  }
+  if (skills.includes("listening")) schemaParts.push(`  "listening": ${listeningSchema}`);
+  if (skills.includes("speaking")) {
+    schemaParts.push(`  "speaking": {
+    "prompt": "consigna em inglês pedindo para o estudante falar por 30-60s sobre o tema, adequada ao nível ${level}.${difficultyNote("speaking", "Fala")}",
+    "targetPoints": ["ponto 1", "ponto 2", "ponto 3"],
+    "gapFill": [
+      {
+        "before": "início de uma frase curta em inglês relacionada ao tema do dia, até onde entra a lacuna",
+        "after": "resto da frase, depois da lacuna (pode ser vazio)",
+        "answer": "palavra ou expressão curta que completa corretamente a lacuna"
+      }
+    ] (gere 2 a 3 itens curtos e simples de completar falando em voz alta, calibrados para o nível ${level})
+  }`);
+  }
+  if (skills.includes("writing")) {
+    schemaParts.push(`  "writing": {
+    "prompt": "consigna em inglês pedindo um texto curto sobre o tema, calibrado ao nível ${level}.${difficultyNote("writing", "Escrita")}",
+    "minWords": número
+  }`);
+  }
+
   const prompt = `Crie uma aula diária de estudo de inglês para um estudante nível CEFR ${level}, com base em um assunto do tipo "${topicKind}" (${topicGuide}). Escolha um tema real e específico (nome de pessoa, música, prato, destino ou evento concreto e atual/atemporal, não genérico).
 ${
   usedTopics.length > 0
@@ -129,37 +186,7 @@ ${usedTopics
 }
 Gere um objeto JSON com exatamente esta forma:
 {
-  "topic": {"kind": "...", "title": "...", "blurb": "1-2 frases de contexto em português, linguagem simples e fluida, sem usar travessão"},
-  "reading": ${readingSchema},
-  "grammar": {
-    "instructions": "1 frase em português explicando a tarefa de preencher lacunas de gramática, sobre o tema do dia",
-    "items": [
-      {
-        "before": "início da frase em inglês, até onde entra a lacuna",
-        "after": "resto da frase em inglês, depois da lacuna (pode ser vazio)",
-        "options": ["opção a", "opção b", "opção c", "opção d"],
-        "answerIndex": 0,
-        "area": "ponto gramatical específico avaliado nesse item, em português, ex: passado simples, preposições, artigos, comparativos",
-        "explanation": "explicação pedagógica breve em português (1-2 frases), no tom acolhedor da Unblocking Minds: trate o erro como parte natural do aprendizado, explique por que aquela é a forma correta e o que costuma confundir na errada, sem jargão técnico, sem travessão"
-      }
-    ] (gere de 4 a 6 itens, cobrindo pontos gramaticais variados e calibrados para o nível ${level}, relacionados ao tema do dia sempre que possível.${difficultyNote("grammar", "Gramática")})
-  },
-  "listening": ${listeningSchema},
-  "speaking": {
-    "prompt": "consigna em inglês pedindo para o estudante falar por 30-60s sobre o tema, adequada ao nível ${level}.${difficultyNote("speaking", "Fala")}",
-    "targetPoints": ["ponto 1", "ponto 2", "ponto 3"],
-    "gapFill": [
-      {
-        "before": "início de uma frase curta em inglês relacionada ao tema do dia, até onde entra a lacuna",
-        "after": "resto da frase, depois da lacuna (pode ser vazio)",
-        "answer": "palavra ou expressão curta que completa corretamente a lacuna"
-      }
-    ] (gere 2 a 3 itens curtos e simples de completar falando em voz alta, calibrados para o nível ${level})
-  },
-  "writing": {
-    "prompt": "consigna em inglês pedindo um texto curto sobre o tema, calibrado ao nível ${level}.${difficultyNote("writing", "Escrita")}",
-    "minWords": número
-  }
+${schemaParts.join(",\n")}
 }
 
 REGRAS PARA TODAS AS ALTERNATIVAS DE MÚLTIPLA ESCOLHA (leitura, escuta, gramática e lacunas):
