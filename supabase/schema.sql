@@ -19,7 +19,7 @@ create table if not exists public.sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   level text not null check (level in ('A1','A2','B1','B2','C1','C2')),
-  topic_kind text not null check (topic_kind in ('news','music','biography','travel','work','health','sports','cooking','technology','astrology')),
+  topic_kind text not null check (topic_kind in ('news','music','biography','travel','work','health','sports','cooking','technology','astrology','custom')),
   topic_title text not null,
   topic_blurb text,
   content jsonb not null,          -- reading/listening/speaking/writing gerados pela IA

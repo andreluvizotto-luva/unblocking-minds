@@ -38,7 +38,10 @@ const TOPIC_KINDS = [
   { id: "cooking", label: "Culinária" },
   { id: "technology", label: "Tecnologia" },
   { id: "astrology", label: "Astrologia" },
+  { id: "custom", label: "Escrever minha situação" },
 ];
+
+const CUSTOM_TOPIC_MAX = 140;
 
 // Ordem canônica das 5 habilidades. Uma aula pode não ter todas — o formato
 // escolhido decide quais entram (ver FORMAT_SKILLS) — então o pedido real de
@@ -139,6 +142,7 @@ export default function HomePage() {
   const [studentName, setStudentName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [topicKind, setTopicKind] = useState("news");
+  const [customTopic, setCustomTopic] = useState("");
   const [format, setFormat] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -203,13 +207,14 @@ export default function HomePage() {
 
   async function startSession() {
     if (!level || !format) return;
+    if (topicKind === "custom" && !customTopic.trim()) return;
     setError("");
     setStage("loading");
     try {
       const res = await fetch("/api/session/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topicKind, format }),
+        body: JSON.stringify({ topicKind, format, customTopic: customTopic.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -551,6 +556,29 @@ export default function HomePage() {
                   </button>
                 ))}
               </div>
+              {topicKind === "custom" && (
+                <div style={{ marginTop: 12 }}>
+                  <textarea
+                    value={customTopic}
+                    onChange={(e) => setCustomTopic(e.target.value.slice(0, CUSTOM_TOPIC_MAX))}
+                    placeholder='Ex: "Entrevista de emprego numa empresa de tecnologia" ou "Pedir comida num restaurante indiano em Londres"'
+                    rows={2}
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      borderRadius: 8,
+                      border: "1px solid var(--line)",
+                      fontSize: 13.5,
+                      fontFamily: "inherit",
+                      color: "var(--ink)",
+                      resize: "vertical",
+                    }}
+                  />
+                  <div style={{ textAlign: "right", fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
+                    {customTopic.length}/{CUSTOM_TOPIC_MAX}
+                  </div>
+                </div>
+              )}
             </Card>
 
             <Card style={{ marginBottom: 20 }}>
@@ -693,19 +721,30 @@ export default function HomePage() {
                     })()}
                   </div>
                 )}
-                <PhysicalButton
-                  onClick={startSession}
-                  disabled={!format}
-                  background={format ? "var(--teal)" : "#e2ddd0"}
-                  color={format ? "var(--ink)" : "#5d5849"}
-                  shadowColor={format ? "var(--mustard)" : "#d3ccbc"}
-                  style={{ gap: 8 }}
-                >
-                  <span>{format ? "Começar aula de hoje" : "Escolha um formato para começar"}</span>
-                  {format && (
-                    <img src="/spark.png" alt="" style={{ width: 22, height: 22, flexShrink: 0, filter: "brightness(0) saturate(100%)" }} />
-                  )}
-                </PhysicalButton>
+                {(() => {
+                  const missingCustomText = topicKind === "custom" && !customTopic.trim();
+                  const ready = !!format && !missingCustomText;
+                  const label = !format
+                    ? "Escolha um formato para começar"
+                    : missingCustomText
+                    ? "Escreva sua situação acima"
+                    : "Começar aula de hoje";
+                  return (
+                    <PhysicalButton
+                      onClick={startSession}
+                      disabled={!ready}
+                      background={ready ? "var(--teal)" : "#e2ddd0"}
+                      color={ready ? "var(--ink)" : "#5d5849"}
+                      shadowColor={ready ? "var(--mustard)" : "#d3ccbc"}
+                      style={{ gap: 8 }}
+                    >
+                      <span>{label}</span>
+                      {ready && (
+                        <img src="/spark.png" alt="" style={{ width: 22, height: 22, flexShrink: 0, filter: "brightness(0) saturate(100%)" }} />
+                      )}
+                    </PhysicalButton>
+                  );
+                })()}
               </div>
             ) : (
               <Card style={{ textAlign: "center", borderColor: "var(--mustard)", marginBottom: 20 }}>
