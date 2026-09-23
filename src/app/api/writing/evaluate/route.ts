@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { askClaude, UNBLOCKING_VOICE_SYSTEM_PROMPT, HAIKU_MODEL } from "@/lib/claude";
 import { supabaseServer } from "@/lib/supabase-server";
 import { requireActiveUser } from "@/lib/require-active-user";
+import { mensagemParaOAluno } from "@/lib/erro-do-aluno";
 
 export async function POST(req: Request) {
   const { sessionId, level, prompt: taskPrompt, text } = await req.json();
@@ -40,7 +41,10 @@ Responda apenas o JSON.`;
       HAIKU_MODEL
     );
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Falha ao avaliar texto" }, { status: 502 });
+    return NextResponse.json(
+      { error: mensagemParaOAluno(e, "writing/evaluate", "Não foi possível avaliar seu texto agora. Tente de novo em alguns instantes.") },
+      { status: 502 }
+    );
   }
 
   if (sessionId && feedback.difficulties?.length) {

@@ -49,6 +49,23 @@ const CUSTOM_TOPIC_MAX = 140;
 // assumido como "as 5 sempre".
 const ALL_SKILLS = ["reading", "grammar", "listening", "speaking", "writing"];
 
+// Rótulos curtos da trilha de progresso. Antes era um slice(0, 4) cego, que
+// produzia "Escu" e "Gram" na tela: palavra cortada no meio lê como defeito,
+// não como abreviação. Só "Gramática" precisa mesmo encurtar.
+const SKILL_SHORT: Record<string, string> = {
+  reading: "Leitura",
+  grammar: "Gram.",
+  listening: "Escuta",
+  speaking: "Fala",
+  writing: "Escrita",
+};
+
+// Erro cuja mensagem já está escrita para o aluno ler (as rotas montam essa
+// frase em src/lib/erro-do-aluno.ts). Serve para distinguir do erro técnico do
+// próprio fetch — "Failed to fetch", "NetworkError" — que nunca pode ir para a
+// tela: vem em inglês e não diz nada a quem só queria estudar.
+class ErroDoAluno extends Error {}
+
 function deriveSkillOrder(content: any): string[] {
   return ALL_SKILLS.filter((k) => content && content[k]);
 }
@@ -123,7 +140,7 @@ function SkillTrack({ skillIdx, skillOrder }: { skillIdx: number; skillOrder: st
                 textOverflow: "ellipsis",
               }}
             >
-              {current ? meta.label : meta.label.slice(0, 4)}
+              {current ? meta.label : SKILL_SHORT[key] || meta.label}
             </span>
           </div>
         );
@@ -216,15 +233,23 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topicKind, format, customTopic: customTopic.trim() }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new ErroDoAluno(
+          data?.error || "Não foi possível montar a aula agora. Tente de novo em alguns instantes."
+        );
+      }
       setSessionId(data.sessionId);
       setContent(data.content);
       setLog([]);
       setSkillIdx(0);
       setStage("session");
     } catch (e: any) {
-      setError(e.message || "Não foi possível gerar a aula. Tente novamente.");
+      setError(
+        e instanceof ErroDoAluno
+          ? e.message
+          : "A conexão falhou no meio do caminho. Confira sua internet e tente de novo."
+      );
       setStage("setup");
     }
   }
@@ -340,8 +365,12 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new ErroDoAluno(
+          data?.error || "Não foi possível montar o relatório agora. Seu progresso está salvo."
+        );
+      }
       setReport(data);
     } catch (e: any) {
       setReport({
@@ -703,7 +732,7 @@ export default function HomePage() {
                     <div key={key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                       <span style={{ width: "100%", height: 5, borderRadius: 999, background: "#e2ddd0" }} />
                       <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 9.5, color: "#7d7768", letterSpacing: "0.02em" }}>
-                        {SKILL_META[key].label.slice(0, 4)}
+                        {SKILL_SHORT[key] || SKILL_META[key].label}
                       </span>
                     </div>
                   ))}

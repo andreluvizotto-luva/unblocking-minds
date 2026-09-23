@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { updateStreakOnCompletion, checkAndUnlockAchievements } from "@/lib/gamification";
 import { updateSkillDifficulty } from "@/lib/skill-difficulty";
 import { requireActiveUser } from "@/lib/require-active-user";
+import { mensagemParaOAluno } from "@/lib/erro-do-aluno";
 
 export async function POST(req: Request) {
   const { sessionId } = await req.json();
@@ -84,7 +85,10 @@ Responda apenas o JSON.`;
       sessionId,
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Falha ao gerar relatório" }, { status: 502 });
+    return NextResponse.json(
+      { error: mensagemParaOAluno(e, "report/generate", "Não foi possível montar o relatório agora. Seu progresso está salvo — tente de novo em alguns instantes.") },
+      { status: 502 }
+    );
   }
 
   const { error: insertErr } = await admin.from("reports").insert({

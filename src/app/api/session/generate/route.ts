@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getSkillDifficulty } from "@/lib/skill-difficulty";
 import { requireActiveUser } from "@/lib/require-active-user";
 import { embaralharAlternativas } from "@/lib/embaralhar-alternativas";
+import { mensagemParaOAluno } from "@/lib/erro-do-aluno";
 
 // Formatos de aula: em vez da aula completa (5 habilidades), o aluno pode
 // pedir um recorte mais curto. As duplas foram escolhidas pra fazer sentido
@@ -254,7 +255,10 @@ Responda apenas o JSON.`;
       userId,
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Falha ao gerar aula" }, { status: 502 });
+    return NextResponse.json(
+      { error: mensagemParaOAluno(e, "session/generate", "Não foi possível montar a aula agora. Tente de novo em alguns instantes — se continuar, avise a professora.") },
+      { status: 502 }
+    );
   }
 
   // Embaralha ANTES de gravar em sessions.content — precisa acontecer aqui,
