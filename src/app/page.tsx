@@ -14,6 +14,8 @@ import {
 } from "@/components/SkillBlocks";
 import { BottomNav } from "@/components/BottomNav";
 import { DiscoverCard } from "@/components/DiscoverCard";
+import { BillingBanner } from "@/components/BillingBanner";
+import { LevelPicker } from "@/components/LevelPicker";
 import { checkAccessOrRedirect } from "@/lib/access-check";
 import { ShareResultButton } from "@/components/ShareResultCard";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
@@ -701,6 +703,8 @@ export default function HomePage() {
               )}
             </div>
 
+            <BillingBanner />
+
             <Card style={{ marginBottom: 16 }}>
               <SectionHeading>Assunto de hoje</SectionHeading>
               <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
@@ -929,14 +933,7 @@ export default function HomePage() {
                 })()}
               </div>
             ) : (
-              <Card style={{ textAlign: "center", borderColor: "var(--mustard)", marginBottom: 20 }}>
-                <div style={{ fontSize: 28, marginBottom: 6 }}>⏳</div>
-                <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>Aguardando seu nível</div>
-                <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                  Um administrador do +Unblocking ainda vai definir seu nível de proficiência (CEFR). Assim que isso
-                  acontecer, você já poderá começar a praticar.
-                </div>
-              </Card>
+              <LevelPicker onSaved={setLevel} />
             )}
 
             {level && (

@@ -3,17 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import { Card, Button } from "@/components/ui";
+import { Card, Button, PhysicalButton } from "@/components/ui";
 
-type Reason = "disabled" | "expired" | "pending";
+type Reason = "disabled" | "expired" | "demo_ended" | "subscription_ended";
 
-const COPY: Record<Reason, { icon: string; title: string; body: string }> = {
-  pending: {
-    icon: "⏳",
-    title: "Cadastro recebido!",
-    body:
-      "Sua conta ainda está aguardando liberação de um administrador do +Unblocking. Assim que ela for aprovada, você já pode voltar aqui e começar a praticar.",
-  },
+const COPY: Record<Reason, { icon: string; title: string; body: string; pay?: boolean }> = {
   disabled: {
     icon: "🔒",
     title: "Acesso indisponível",
@@ -24,6 +18,18 @@ const COPY: Record<Reason, { icon: string; title: string; body: string }> = {
     title: "Acesso indisponível",
     body: "O prazo de acesso da sua conta expirou. Fale com a administração do +Unblocking para renovar.",
   },
+  demo_ended: {
+    icon: "⏳",
+    title: "Seu teste grátis acabou",
+    body: "Gostou de praticar? Assine o plano mensal e continue de onde parou. Seu histórico e suas conquistas continuam salvos.",
+    pay: true,
+  },
+  subscription_ended: {
+    icon: "⏳",
+    title: "Sua assinatura venceu",
+    body: "Renove por mais 30 dias, com Pix ou cartão, e volte a praticar na hora. Seu histórico continua salvo.",
+    pay: true,
+  },
 };
 
 export default function BloqueadoPage() {
@@ -33,7 +39,7 @@ export default function BloqueadoPage() {
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? sessionStorage.getItem("blockReason") : null;
-    if (stored === "expired" || stored === "pending") setReason(stored);
+    if (stored && stored in COPY) setReason(stored as Reason);
   }, []);
 
   async function signOut() {
@@ -61,7 +67,20 @@ export default function BloqueadoPage() {
           {copy.title}
         </h1>
         <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.5, marginBottom: 18 }}>{copy.body}</p>
-        <Button onClick={signOut} style={{ width: "100%" }}>Sair</Button>
+        {copy.pay && (
+          <PhysicalButton
+            onClick={() => router.push("/assinatura")}
+            background="var(--teal)"
+            color="var(--ink)"
+            shadowColor="var(--mustard)"
+            style={{ marginBottom: 12 }}
+          >
+            {reason === "demo_ended" ? "Assinar" : "Renovar"}
+          </PhysicalButton>
+        )}
+        <Button onClick={signOut} variant={copy.pay ? "subtle" : "primary"} style={{ width: "100%" }}>
+          Sair
+        </Button>
       </Card>
     </div>
   );

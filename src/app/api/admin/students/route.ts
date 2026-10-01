@@ -13,7 +13,7 @@ export async function GET() {
 
   const { data: profiles, error: profilesErr } = await admin
     .from("profiles")
-    .select("id, name, default_level, is_admin, is_active, approved_at, password_expires_at, created_at");
+    .select("id, name, default_level, is_admin, is_active, approved_at, password_expires_at, created_at, category, access_until");
   if (profilesErr) return NextResponse.json({ error: profilesErr.message }, { status: 500 });
   const profileById = new Map((profiles || []).map((p) => [p.id, p]));
 
@@ -56,6 +56,8 @@ export async function GET() {
       isActive: profile?.is_active !== false,
       approvedAt: profile?.approved_at || null,
       passwordExpiresAt: profile?.password_expires_at || null,
+      category: profile?.category || "demo",
+      accessUntil: profile?.access_until || null,
       createdAt: u.created_at,
       totalSessions: stats?.total || 0,
       completedSessions: stats?.completed || 0,

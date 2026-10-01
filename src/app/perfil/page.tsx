@@ -908,6 +908,13 @@ export default function PerfilPage() {
           )}
           <button
             type="button"
+            onClick={() => router.push("/assinatura")}
+            style={{ display: "block", background: "none", border: "none", padding: 0, marginBottom: 10, fontSize: 13, color: "var(--ink)", cursor: "pointer", textDecoration: "underline" }}
+          >
+            Minha assinatura
+          </button>
+          <button
+            type="button"
             onClick={() => setPwOpen((v) => !v)}
             style={{ background: "none", border: "none", padding: 0, fontSize: 13, color: "var(--ink)", cursor: "pointer", textDecoration: "underline" }}
           >

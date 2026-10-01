@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireActiveUser } from "@/lib/require-active-user";
 
 // Vozes disponíveis na API de TTS da OpenAI.
 const OPENAI_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
@@ -32,6 +33,12 @@ export async function POST(req: Request) {
     );
   }
 
+  const supabase = supabaseServer();
+  const check = await requireActiveUser(supabase);
+  if (check.ok === false) {
+    return NextResponse.json({ error: check.error }, { status: check.status });
+  }
+
   let body: any;
   try {
     body = await req.json();
@@ -58,11 +65,6 @@ export async function POST(req: Request) {
     // um áudio em cache, confirma que quem está pedindo é o dono da sessão.
     // Sem isso, um aluno poderia adivinhar o sessionId de outro e ouvir
     // conteúdo de aula que não é dele.
-    const supabase = supabaseServer();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-    }
     const { data: session } = await supabase.from("sessions").select("id").eq("id", sessionId).single();
     if (!session) {
       return NextResponse.json({ error: "Aula não encontrada" }, { status: 404 });

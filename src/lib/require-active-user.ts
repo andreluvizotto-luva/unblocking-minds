@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ACCESS_ERROR, ACCESS_SELECT, accessStatus } from "./access";
 
-// Checagem única de "autenticado e aprovado" para rotas que gastam Claude ou
-// OpenAI. checkAccessOrRedirect (access-check.ts) faz o equivalente no
-// front-end, mas é só UX — sem esta checagem no servidor, um aluno cadastrado
-// e nunca aprovado por um admin podia chamar essas rotas direto e gastar API
-// de verdade indefinidamente.
+// Checagem única de "autenticado e com acesso" para rotas que gastam Claude
+// ou OpenAI. checkAccessOrRedirect (access-check.ts) faz o equivalente no
+// front-end, mas é só UX — sem esta checagem no servidor, quem não tem acesso
+// podia chamar essas rotas direto e gastar API de verdade.
 export type ActiveUserResult = { ok: true; userId: string } | { ok: false; status: number; error: string };
 
 export async function requireActiveUser(supabase: SupabaseClient): Promise<ActiveUserResult> {
@@ -13,13 +13,8 @@ export async function requireActiveUser(supabase: SupabaseClient): Promise<Activ
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, status: 401, error: "Não autenticado" };
 
-  const { data: profile } = await supabase.from("profiles").select("is_active").eq("id", user.id).single();
-  if (profile?.is_active === false) {
-    return {
-      ok: false,
-      status: 403,
-      error: "Sua conta ainda não foi liberada por um administrador. Fale com a administração do +Unblocking.",
-    };
-  }
+  const { data: profile } = await supabase.from("profiles").select(ACCESS_SELECT).eq("id", user.id).single();
+  const status = profile ? accessStatus(profile) : "ok";
+  if (status !== "ok") return { ok: false, status: 403, error: ACCESS_ERROR[status] };
   return { ok: true, userId: user.id };
 }

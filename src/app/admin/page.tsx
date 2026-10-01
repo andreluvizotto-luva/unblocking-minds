@@ -52,6 +52,8 @@ type Student = {
   isActive: boolean;
   approvedAt: string | null;
   passwordExpiresAt: string | null;
+  category: string;
+  accessUntil: string | null;
   createdAt: string;
   totalSessions: number;
   completedSessions: number;
@@ -61,6 +63,7 @@ type Student = {
 };
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const CATEGORY_BG: Record<string, string> = { demo: "#fff2d6", unblocking: "#e4ecdf", app: "#e3e8f7" };
 
 const SKILL_LABELS: Record<string, string> = {
   reading: "Leitura",
@@ -155,10 +158,8 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Falha ao salvar");
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Falha ao salvar");
       setStudents((prev) =>
         prev.map((s) =>
           s.id === id
@@ -167,6 +168,8 @@ export default function AdminPage() {
                 ...("isActive" in body ? { isActive: body.isActive } : {}),
                 ...("passwordExpiresAt" in body ? { passwordExpiresAt: body.passwordExpiresAt } : {}),
                 ...("isAdmin" in body ? { isAdmin: body.isAdmin } : {}),
+                ...("category" in body ? { category: body.category } : {}),
+                ...(data.accessUntil !== undefined ? { accessUntil: data.accessUntil } : {}),
               }
             : s
         )
@@ -411,22 +414,32 @@ export default function AdminPage() {
                         <td style={{ padding: "8px" }}>
                           <div style={{ fontWeight: 600 }}>{s.name || "(sem nome)"}</div>
                           <div style={{ color: "var(--muted)", fontSize: 11.5 }}>{s.email}</div>
-                          {!s.isActive && !s.approvedAt && (
-                            <span
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                            <select
+                              value={s.category}
+                              disabled={savingId === s.id}
+                              onChange={(e) => patchStudent(s.id, { category: e.target.value })}
                               style={{
-                                display: "inline-block",
-                                marginTop: 4,
+                                padding: "2px 6px",
+                                borderRadius: 20,
+                                border: "1px solid var(--line)",
                                 fontSize: 10.5,
                                 fontWeight: 700,
-                                padding: "2px 8px",
-                                borderRadius: 20,
-                                background: "#fff2d6",
-                                color: "var(--mustard)",
+                                background: CATEGORY_BG[s.category] || "#fff",
                               }}
                             >
-                              ⏳ aguardando aprovação
-                            </span>
-                          )}
+                              <option value="demo">Demo</option>
+                              <option value="unblocking">Unblocking</option>
+                              <option value="app">App</option>
+                            </select>
+                            {s.category !== "unblocking" && !s.isAdmin && (
+                              <span style={{ fontSize: 10.5, color: s.accessUntil && new Date(s.accessUntil).getTime() > Date.now() ? "var(--muted)" : "var(--coral)" }}>
+                                {s.accessUntil
+                                  ? `${new Date(s.accessUntil).getTime() > Date.now() ? "até" : "venceu"} ${new Date(s.accessUntil).toLocaleDateString("pt-BR")}`
+                                  : "sem prazo"}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: "8px" }}>
                           <select

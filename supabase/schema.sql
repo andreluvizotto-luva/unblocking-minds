@@ -350,3 +350,128 @@ create index if not exists game_scores_user_game_idx on public.game_scores (user
 
 alter table public.game_scores enable row level security;
 revoke all privileges on table public.game_scores from anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- Billing InfinitePay (assinatura mensal). Mesmo conteúdo de
+-- Claude outputs/billing-infinitepay.sql. Substitui o fluxo de aprovação
+-- manual: cadastro novo nasce como demo de 3 dias, já liberado.
+-- ---------------------------------------------------------------------
+
+-- 1. Categoria e prazo de acesso no perfil -----------------------------------
+alter table public.profiles add column if not exists category text not null default 'demo';
+alter table public.profiles add column if not exists access_until timestamptz;
+alter table public.profiles drop constraint if exists profiles_category_check;
+alter table public.profiles add constraint profiles_category_check
+  check (category in ('demo','unblocking','app'));
+
+-- Alunos de hoje foram liberados à mão: viram "unblocking" (gratuito enquanto
+-- o admin mantiver). Só roda na primeira vez (antes disso todos são 'demo'
+-- sem access_until).
+update public.profiles
+   set category = 'unblocking'
+ where category = 'demo' and access_until is null and is_active = true;
+
+-- Pendentes de aprovação (se houver) viram demo de 3 dias.
+update public.profiles
+   set is_active = true, approved_at = coalesce(approved_at, now()), access_until = now() + interval '3 days'
+ where category = 'demo' and access_until is null and is_active = false and approved_at is null;
+
+-- 2. Campos que só o admin/servidor muda ------------------------------------
+create or replace function public.protect_admin_only_profile_fields()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  if auth.role() <> 'service_role' then
+    new.is_admin := old.is_admin;
+    new.is_active := old.is_active;
+    new.approved_at := old.approved_at;
+    new.default_level := old.default_level;
+    new.password_expires_at := old.password_expires_at;
+    new.category := old.category;
+    new.access_until := old.access_until;
+  end if;
+  return new;
+end;
+$$;
+
+-- 3. Cadastro novo nasce como demo de 3 dias, já liberado --------------------
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, name, is_active, approved_at, category, access_until)
+  values (new.id, new.raw_user_meta_data->>'name', true, now(), 'demo', now() + interval '3 days');
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- 4. Pagamentos (só service_role) --------------------------------------------
+create table if not exists public.payments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  amount_cents integer not null,
+  period_days integer not null default 30,
+  status text not null default 'pending' check (status in ('pending','paid')),
+  checkout_url text,
+  invoice_slug text,
+  transaction_nsu text unique,
+  capture_method text,
+  paid_amount integer,
+  receipt_url text,
+  created_at timestamptz not null default now(),
+  paid_at timestamptz
+);
+create index if not exists payments_user_idx on public.payments (user_id, created_at desc);
+alter table public.payments enable row level security;
+revoke all privileges on table public.payments from anon, authenticated;
+
+-- 5. Confirmação atômica e idempotente ---------------------------------------
+-- Marca o pagamento como pago e estende o acesso numa única transação. Se o
+-- pagamento já estava pago (webhook repetido, ou webhook e página de retorno
+-- chegando juntos), não faz nada e devolve null.
+create or replace function public.apply_payment(
+  p_id uuid, p_slug text, p_tx text, p_method text, p_paid_amount integer, p_receipt text
+) returns timestamptz
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid;
+  v_days integer;
+  v_until timestamptz;
+begin
+  update payments
+     set status = 'paid', paid_at = now(), invoice_slug = p_slug, transaction_nsu = p_tx,
+         capture_method = p_method, paid_amount = p_paid_amount, receipt_url = p_receipt
+   where id = p_id and status = 'pending'
+   returning user_id, period_days into v_user, v_days;
+
+  if v_user is null then
+    return null;
+  end if;
+
+  update profiles
+     set category = case when category = 'unblocking' then category else 'app' end,
+         access_until = greatest(coalesce(access_until, now()), now()) + v_days * interval '1 day'
+   where id = v_user
+   returning access_until into v_until;
+
+  return v_until;
+end;
+$$;
+revoke all on function public.apply_payment(uuid, text, text, text, integer, text) from public, anon, authenticated;
+grant execute on function public.apply_payment(uuid, text, text, text, integer, text) to service_role;
+
+-- 6. Controle de e-mails de cobrança já enviados (só service_role) -----------
+create table if not exists public.billing_emails (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  kind text not null,
+  access_until timestamptz not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, kind, access_until)
+);
+alter table public.billing_emails enable row level security;
+revoke all privileges on table public.billing_emails from anon, authenticated;

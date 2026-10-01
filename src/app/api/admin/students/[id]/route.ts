@@ -19,7 +19,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const { data: profile, error: profileErr } = await admin
     .from("profiles")
     .select(
-      "name, bio, location, website, default_level, is_admin, is_active, approved_at, password_expires_at, created_at, current_streak, longest_streak, last_practice_date"
+      "name, bio, location, website, default_level, is_admin, is_active, approved_at, password_expires_at, created_at, current_streak, longest_streak, last_practice_date, category, access_until"
     )
     .eq("id", userId)
     .single();
@@ -76,8 +76,16 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     saida: (uso || []).reduce((a: number, l: any) => a + (l.output_tokens || 0), 0),
   };
 
+  const { data: payments } = await admin
+    .from("payments")
+    .select("id, amount_cents, paid_amount, capture_method, receipt_url, paid_at")
+    .eq("user_id", userId)
+    .eq("status", "paid")
+    .order("paid_at", { ascending: false });
+
   return NextResponse.json({
     id: userId,
+    payments: payments || [],
     email: userData.user.email,
     profile,
     sessions: sessionsWithData,
@@ -117,6 +125,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     update.default_level = body.defaultLevel;
   }
 
+  if ("category" in body) {
+    if (!["demo", "unblocking", "app"].includes(body.category)) {
+      return NextResponse.json({ error: "Categoria inválida" }, { status: 400 });
+    }
+    update.category = body.category;
+  }
+  if ("accessUntil" in body) update.access_until = body.accessUntil || null;
+  // "+N dias" de cortesia: soma ao prazo atual (ou a partir de hoje, se já
+  // venceu), igual a um pagamento.
+  if (typeof body.addDays === "number" && body.addDays > 0 && body.addDays <= 366) {
+    const { data: cur } = await supabaseAdmin().from("profiles").select("access_until").eq("id", userId).single();
+    const base = Math.max(Date.now(), cur?.access_until ? new Date(cur.access_until).getTime() : 0);
+    update.access_until = new Date(base + body.addDays * 86_400_000).toISOString();
+  }
+
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "Nada para atualizar" }, { status: 400 });
   }
@@ -125,7 +148,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const { error } = await admin.from("profiles").update(update).eq("id", userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, accessUntil: update.access_until });
 }
 
 // Apaga o aluno de forma definitiva. Remover o usuário do Auth dispara o

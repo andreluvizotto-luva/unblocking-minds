@@ -36,7 +36,10 @@ type Detail = {
     current_streak: number | null;
     longest_streak: number | null;
     last_practice_date: string | null;
+    category: string;
+    access_until: string | null;
   };
+  payments: { id: string; amount_cents: number; paid_amount: number | null; capture_method: string | null; receipt_url: string | null; paid_at: string }[];
   sessions: SessionRow[];
   skillProgress: { skill: string; difficulty_percent: number; consecutive_strong: number }[];
   tokenUsage: { chamadas: number; entrada: number; saida: number } | null;
@@ -145,10 +148,8 @@ export default function AdminStudentPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Falha ao salvar");
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Falha ao salvar");
       setDetail((prev) =>
         prev
           ? {
@@ -160,6 +161,8 @@ export default function AdminStudentPage() {
                 ...("isAdmin" in body ? { is_admin: body.isAdmin } : {}),
                 ...("defaultLevel" in body ? { default_level: body.defaultLevel } : {}),
                 ...("isActive" in body && body.isActive ? { approved_at: new Date().toISOString() } : {}),
+                ...("category" in body ? { category: body.category } : {}),
+                ...(data.accessUntil !== undefined ? { access_until: data.accessUntil } : {}),
               },
             }
           : prev
@@ -238,22 +241,6 @@ export default function AdminStudentPage() {
                   <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 6 }}>
                     Cadastrado em {formatDateTime(detail.profile.created_at)}
                   </div>
-                  {!detail.profile.is_active && !detail.profile.approved_at && (
-                    <span
-                      style={{
-                        display: "inline-block",
-                        marginTop: 8,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "3px 10px",
-                        borderRadius: 20,
-                        background: "#fff2d6",
-                        color: "var(--mustard)",
-                      }}
-                    >
-                      ⏳ aguardando aprovação
-                    </span>
-                  )}
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 200 }}>
@@ -267,6 +254,42 @@ export default function AdminStudentPage() {
                       onChange={(next) => patch({ isActive: next })}
                     />
                   </div>
+                  <div>
+                    <SectionLabel>Categoria</SectionLabel>
+                    <select
+                      value={detail.profile.category}
+                      disabled={saving}
+                      onChange={(e) => patch({ category: e.target.value })}
+                      style={{ padding: "7px 10px", borderRadius: 3, border: "1px solid var(--line)", fontSize: 13, background: "#fff" }}
+                    >
+                      <option value="demo">Demo (teste grátis)</option>
+                      <option value="unblocking">Unblocking (acesso incluso)</option>
+                      <option value="app">App (assinante)</option>
+                    </select>
+                  </div>
+                  {detail.profile.category !== "unblocking" && (
+                    <div>
+                      <SectionLabel>Acesso até</SectionLabel>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <input
+                          type="date"
+                          value={detail.profile.access_until ? detail.profile.access_until.slice(0, 10) : ""}
+                          disabled={saving}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            patch({ accessUntil: v ? new Date(v + "T23:59:59").toISOString() : null });
+                          }}
+                          style={{ padding: "6px 9px", borderRadius: 3, border: "1px solid var(--line)", fontSize: 13 }}
+                        />
+                        <Button variant="ghost" style={{ padding: "5px 10px", fontSize: 12 }} disabled={saving} onClick={() => patch({ addDays: 30 })}>
+                          +30 dias
+                        </Button>
+                      </div>
+                      {detail.profile.access_until && new Date(detail.profile.access_until).getTime() < Date.now() && (
+                        <div style={{ fontSize: 11, color: "var(--coral)", marginTop: 4 }}>Vencido: o aluno vê a tela de assinar.</div>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <SectionLabel>Nível de proficiência (CEFR)</SectionLabel>
                     <select
@@ -334,6 +357,27 @@ export default function AdminStudentPage() {
                 </div>
               </div>
             </Card>
+
+            {detail.payments.length > 0 && (
+              <Card style={{ marginBottom: 16 }}>
+                <SectionLabel>Pagamentos</SectionLabel>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6, fontSize: 13 }}>
+                  {detail.payments.map((p) => (
+                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                      <span>
+                        {formatDateTime(p.paid_at)} · {((p.paid_amount ?? p.amount_cents) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        {p.capture_method ? ` · ${p.capture_method === "pix" ? "Pix" : "Cartão"}` : ""}
+                      </span>
+                      {p.receipt_url && /^https:\/\//.test(p.receipt_url) && (
+                        <a href={p.receipt_url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--ink)" }}>
+                          Comprovante
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             <Card style={{ marginBottom: 16 }}>
               <SectionLabel>Resumo de progresso</SectionLabel>
