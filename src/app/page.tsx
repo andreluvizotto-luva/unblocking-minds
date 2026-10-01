@@ -674,9 +674,32 @@ export default function HomePage() {
               )}
             </div>
 
-            <p style={{ margin: "0 0 22px", fontFamily: "'Caveat', cursive", fontSize: 21, fontWeight: 500, lineHeight: 1.3, color: "var(--mustard-bright)" }}>
+            <p style={{ margin: "0 0 16px", fontFamily: "'Caveat', cursive", fontSize: 21, fontWeight: 500, lineHeight: 1.3, color: "var(--mustard-bright)" }}>
               “{quote.text}”
             </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 22 }}>
+              <SectionHeading onDark>Suas conquistas</SectionHeading>
+              <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ flex: 1, borderRadius: 16, background: "rgba(79,98,72,.55)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--ink-on-dark)" }}>{currentStreak}</span>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11.5, lineHeight: 1.3, color: "#dcd8c9" }}>dias seguidos</span>
+                </div>
+                <div style={{ flex: 1, borderRadius: 16, background: "rgba(201,137,27,.3)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--teal)" }}>{sessionCount}</span>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11.5, lineHeight: 1.3, color: "#dcd8c9" }}>aulas concluídas</span>
+                </div>
+                <div style={{ flex: 1, borderRadius: 16, background: "rgba(234,80,99,.28)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--coral)" }}>{level || "—"}</span>
+                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11.5, lineHeight: 1.3, color: "#dcd8c9" }}>nível atual</span>
+                </div>
+              </div>
+              {achievements.length > 0 && (
+                <Card className="fade-in-up" style={{ marginTop: 4, background: "#1f2b4a", border: "1px solid var(--line-on-dark)", color: "var(--ink-on-dark)" }}>
+                  <AchievementStrip achievements={achievements} nextAchievement={nextAchievement} onDark />
+                </Card>
+              )}
+            </div>
 
             <Card style={{ marginBottom: 16 }}>
               <SectionHeading>Assunto de hoje</SectionHeading>
@@ -1007,29 +1030,6 @@ export default function HomePage() {
             )}
 
             {level && <DiscoverCard level={level} />}
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <SectionHeading onDark>Suas conquistas</SectionHeading>
-              <div style={{ display: "flex", gap: 10 }}>
-                <div style={{ flex: 1, borderRadius: 16, background: "rgba(79,98,72,.55)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--ink-on-dark)" }}>{currentStreak}</span>
-                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11.5, lineHeight: 1.3, color: "#dcd8c9" }}>dias seguidos</span>
-                </div>
-                <div style={{ flex: 1, borderRadius: 16, background: "rgba(201,137,27,.3)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--teal)" }}>{sessionCount}</span>
-                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11.5, lineHeight: 1.3, color: "#dcd8c9" }}>aulas concluídas</span>
-                </div>
-                <div style={{ flex: 1, borderRadius: 16, background: "rgba(234,80,99,.28)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--coral)" }}>{level || "—"}</span>
-                  <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11.5, lineHeight: 1.3, color: "#dcd8c9" }}>nível atual</span>
-                </div>
-              </div>
-              {achievements.length > 0 && (
-                <Card className="fade-in-up" style={{ marginTop: 4, background: "#1f2b4a", border: "1px solid var(--line-on-dark)", color: "var(--ink-on-dark)" }}>
-                  <AchievementStrip achievements={achievements} nextAchievement={nextAchievement} onDark />
-                </Card>
-              )}
-            </div>
           </div>
         )}
 
