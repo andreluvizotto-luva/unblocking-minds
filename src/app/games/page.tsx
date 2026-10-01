@@ -30,7 +30,7 @@ const GAMES = [
   },
   {
     id: "guess" as const,
-    title: "Quem é?",
+    title: "Who is it?",
     description: "Descubra a personalidade pelas dicas em inglês. Quanto menos dicas pedir, mais pontos.",
     max: GUESS_MAX_SCORE,
     color: "var(--coral)",
@@ -57,7 +57,7 @@ const GAMES = [
   },
   {
     id: "words" as const,
-    title: "Palavras",
+    title: "Word Builder",
     description: "Forme palavras com 7 letras sorteadas, contra o relógio. Palavras maiores valem mais.",
     max: WORDS_MAX_SCORE,
     color: "var(--mustard)",
@@ -71,7 +71,7 @@ const GAMES = [
   },
 ];
 
-const GAME_LABEL: Record<string, string> = { quiz: "Quiz", guess: "Quem é?", trivia: "Trivia", words: "Palavras" };
+const GAME_LABEL: Record<string, string> = { quiz: "Quiz", guess: "Who is it?", trivia: "Trivia", words: "Word Builder" };
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });

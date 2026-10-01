@@ -639,9 +639,9 @@ export default function PerfilPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 8 }}>
               {[
                 { label: "Quiz", value: gameBest.quiz, max: 80 },
-                { label: "Quem é?", value: gameBest.guess, max: 100 },
+                { label: "Who is it?", value: gameBest.guess, max: 100 },
                 { label: "Trivia", value: gameBest.trivia, max: 100 },
-                { label: "Palavras", value: gameBest.words, max: 300 },
+                { label: "Word Builder", value: gameBest.words, max: 300 },
               ].map((g) => (
                 <div key={g.label} style={{ flex: 1, padding: 12, border: "1px solid var(--line)", background: "#fbf8f1", borderRadius: 3 }}>
                   <div style={{ fontSize: 12, color: "var(--muted)" }}>{g.label}</div>

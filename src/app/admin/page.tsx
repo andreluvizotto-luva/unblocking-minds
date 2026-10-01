@@ -35,7 +35,8 @@ const OPERACAO_LABELS: Record<string, string> = {
   speaking_evaluate: "Avaliar fala",
   writing_evaluate: "Corrigir escrita",
   game_quiz: "Game: Quiz",
-  game_guess: "Game: Quem é?",
+  game_guess: "Game: Who is it?",
+  game_trivia: "Game: Trivia",
 };
 
 function milhares(n: number) {

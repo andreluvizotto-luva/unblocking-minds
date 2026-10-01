@@ -948,7 +948,7 @@ export default function HomePage() {
                     },
                     {
                       id: "words",
-                      title: "Palavras",
+                      title: "Word Builder",
                       hint: "Letras contra o relógio",
                       bg: "var(--mustard)",
                       icon: (
@@ -961,7 +961,7 @@ export default function HomePage() {
                     },
                     {
                       id: "guess",
-                      title: "Quem é?",
+                      title: "Who is it?",
                       hint: "Adivinhe pelas dicas",
                       bg: "var(--coral)",
                       icon: (
