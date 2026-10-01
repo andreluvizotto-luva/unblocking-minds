@@ -111,6 +111,80 @@ const FORMAT_ICON_CONFIG: Record<string, { bg: string; path: React.ReactNode }> 
   },
 };
 
+// Ícone de contorno de uma cor só para cada tema. Sem círculo colorido de
+// propósito: o seletor de formato logo abaixo já usa círculos coloridos, e
+// as duas listas não podem disputar atenção. Nenhum ícone repete os do
+// formato (lápis, estrela), por isso "Escrever minha situação" é um balão
+// e Astrologia é só a lua.
+const TOPIC_ICON_PATHS: Record<string, React.ReactNode> = {
+  news: (
+    <>
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </>
+  ),
+  music: (
+    <>
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </>
+  ),
+  biography: (
+    <>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </>
+  ),
+  travel: (
+    <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+  ),
+  work: (
+    <>
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    </>
+  ),
+  health: (
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  ),
+  sports: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="12 7.5 16 10.4 14.5 15 9.5 15 8 10.4" />
+      <path d="M12 7.5V2M16 10.4l5.5-1.4M14.5 15l3 5M9.5 15l-3 5M8 10.4 2.5 9" />
+    </>
+  ),
+  cooking: (
+    <>
+      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+      <path d="M7 2v20" />
+      <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
+    </>
+  ),
+  technology: (
+    <>
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </>
+  ),
+  astrology: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
+  custom: (
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  ),
+};
+
+function TopicIcon({ id, color }: { id: string; color: string }) {
+  const path = TOPIC_ICON_PATHS[id];
+  if (!path) return null;
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
+      {path}
+    </svg>
+  );
+}
+
 function FormatIcon({ id, size = 22 }: { id: string; size?: number }) {
   const c = FORMAT_ICON_CONFIG[id];
   if (!c) return null;
@@ -607,26 +681,35 @@ export default function HomePage() {
             <Card style={{ marginBottom: 16 }}>
               <SectionLabel>Assunto de hoje</SectionLabel>
               <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                {TOPIC_KINDS.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setTopicKind(t.id)}
-                    style={{
-                      cursor: "pointer",
-                      borderRadius: 20,
-                      padding: "8px 16px",
-                      fontSize: 13.5,
-                      fontWeight: 500,
-                      transition: "transform 0.12s ease, background 0.12s ease",
-                      transform: topicKind === t.id ? "scale(1.04)" : "none",
-                      border: topicKind === t.id ? "1px solid var(--teal)" : "1px solid var(--line)",
-                      background: topicKind === t.id ? "var(--teal)" : "#fbf8f1",
-                      color: "var(--ink)",
-                    }}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+                {TOPIC_KINDS.map((t) => {
+                  const selected = topicKind === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setTopicKind(t.id)}
+                      style={{
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        borderRadius: 20,
+                        padding: "8px 14px 8px 12px",
+                        fontSize: 13.5,
+                        fontWeight: 500,
+                        transition: "transform 0.12s ease, background 0.12s ease",
+                        transform: selected ? "scale(1.04)" : "none",
+                        // Tracejado marca a única opção em que o aluno escreve
+                        // em vez de só escolher.
+                        border: selected ? "1px solid var(--teal)" : t.id === "custom" ? "1px dashed #b9b4a4" : "1px solid var(--line)",
+                        background: selected ? "var(--teal)" : "#fbf8f1",
+                        color: "var(--ink)",
+                      }}
+                    >
+                      <TopicIcon id={t.id} color={selected ? "var(--ink)" : "var(--muted)"} />
+                      {t.label}
+                    </button>
+                  );
+                })}
               </div>
               {topicKind === "custom" && (
                 <div style={{ marginTop: 12 }}>
