@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import { Card, Button, SectionLabel, Spark, PhysicalButton, ProcessingAnimation, Lockup } from "@/components/ui";
+import { Card, Button, SectionLabel, SectionHeading, Spark, PhysicalButton, ProcessingAnimation, Lockup } from "@/components/ui";
 import {
   SKILL_META,
   ReadingBlock,
@@ -28,17 +28,17 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 const TOPIC_KINDS = [
-  { id: "news", label: "Assunto do momento" },
-  { id: "music", label: "Música" },
-  { id: "biography", label: "Biografia inspiradora" },
-  { id: "travel", label: "Viagem" },
-  { id: "work", label: "Trabalho" },
-  { id: "health", label: "Saúde e Bem-Estar" },
-  { id: "sports", label: "Esportes" },
-  { id: "cooking", label: "Culinária" },
-  { id: "technology", label: "Tecnologia" },
-  { id: "astrology", label: "Astrologia" },
-  { id: "custom", label: "Escrever minha situação" },
+  { id: "news", label: "Trending now" },
+  { id: "music", label: "Music" },
+  { id: "biography", label: "Inspiring lives" },
+  { id: "travel", label: "Travel" },
+  { id: "work", label: "Work" },
+  { id: "health", label: "Health & Wellness" },
+  { id: "sports", label: "Sports" },
+  { id: "cooking", label: "Cooking" },
+  { id: "technology", label: "Technology" },
+  { id: "astrology", label: "Astrology" },
+  { id: "custom", label: "Write my own situation" },
 ];
 
 const CUSTOM_TOPIC_MAX = 140;
@@ -90,10 +90,10 @@ function deriveSkillOrder(content: any): string[] {
 // Leitura já inclui a interpretação (sempre foram a mesma habilidade no
 // app); Escuta+Fala e Escrita+Gramática combinam pares que se apoiam.
 const LESSON_FORMATS = [
-  { id: "reading", label: "Leitura + Interpretação", skills: ["reading"], minutes: "4-6 min" },
+  { id: "reading", label: "Reading + Comprehension", skills: ["reading"], minutes: "4-6 min" },
   { id: "listening_speaking", label: "Listening + Speaking", skills: ["listening", "speaking"], minutes: "7-10 min" },
   { id: "writing_grammar", label: "Writing + Grammar", skills: ["writing", "grammar"], minutes: "7-10 min" },
-  { id: "full", label: "Aula completa", skills: ALL_SKILLS, minutes: "15-20 min" },
+  { id: "full", label: "Full lesson", skills: ALL_SKILLS, minutes: "15-20 min" },
 ];
 
 // Selo colorido com ícone de contorno para cada formato de aula — mesma
@@ -670,7 +670,7 @@ export default function HomePage() {
             </p>
 
             <Card style={{ marginBottom: 16 }}>
-              <SectionLabel>Assunto de hoje</SectionLabel>
+              <SectionHeading>Assunto de hoje</SectionHeading>
               <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                 {TOPIC_KINDS.map((t) => {
                   const selected = topicKind === t.id;
@@ -728,7 +728,7 @@ export default function HomePage() {
             </Card>
 
             <Card style={{ marginBottom: 20 }}>
-              <SectionLabel>Formato da aula</SectionLabel>
+              <SectionHeading>Formato da aula</SectionHeading>
               <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                 {LESSON_FORMATS.map((f) => (
                   <button
@@ -909,7 +909,7 @@ export default function HomePage() {
 
             {level && (
               <Card style={{ marginBottom: 22 }}>
-                <SectionLabel>Games</SectionLabel>
+                <SectionHeading>Games</SectionHeading>
                 <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                   {[
                     {
@@ -972,9 +972,7 @@ export default function HomePage() {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted-on-dark)" }}>
-                Suas conquistas
-              </span>
+              <SectionHeading onDark>Suas conquistas</SectionHeading>
               <div style={{ display: "flex", gap: 10 }}>
                 <div style={{ flex: 1, borderRadius: 16, background: "rgba(79,98,72,.55)", padding: 14, display: "flex", flexDirection: "column", gap: 4 }}>
                   <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600, color: "var(--ink-on-dark)" }}>{currentStreak}</span>

@@ -425,6 +425,27 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 6 }}>{children}</div>;
 }
 
+// Título das seções da tela inicial, no mesmo estilo do título do cartão
+// "Aula de hoje". SectionLabel continua para rótulos menores dentro das
+// atividades e do relatório.
+export function SectionHeading({ children, onDark }: { children: React.ReactNode; onDark?: boolean }) {
+  return (
+    <h2
+      style={{
+        margin: "0 0 6px",
+        fontFamily: "'Poppins', sans-serif",
+        fontSize: 22,
+        lineHeight: 1.2,
+        fontWeight: 600,
+        letterSpacing: "-0.015em",
+        color: onDark ? "var(--ink-on-dark)" : "var(--ink)",
+      }}
+    >
+      {children}
+    </h2>
+  );
+}
+
 // Interruptor liga/desliga (usado no painel de admin para habilitar/
 // desabilitar o acesso de um aluno).
 export function Switch({
