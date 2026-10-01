@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import { Card, Button, SectionLabel, Spark, PhysicalButton, ProcessingAnimation } from "@/components/ui";
+import { Card, Button, SectionLabel, Spark, PhysicalButton, ProcessingAnimation, Lockup } from "@/components/ui";
 import {
   SKILL_META,
   ReadingBlock,
@@ -209,32 +209,6 @@ function FormatIcon({ id, size = 22 }: { id: string; size?: number }) {
       <svg width={size * 0.56} height={size * 0.56} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         {c.path}
       </svg>
-    </span>
-  );
-}
-
-// Lockup oficial da marca: "+Unblocking" seguido da fagulha, com um
-// espaço normal entre os dois (não sobrepõe o texto) — nunca a logo antiga
-// em PNG. Usa gap do flex em vez de margem negativa, então o espaçamento
-// acompanha o tamanho da fonte em qualquer largura de tela.
-function Lockup({ size = 20, color = "var(--ink-on-dark)" }: { size?: number; color?: string }) {
-  const sparkSize = Math.round(size * 1.05);
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: Math.max(3, Math.round(size * 0.12)),
-        fontFamily: "'Poppins', sans-serif",
-        fontWeight: 600,
-        fontSize: size,
-        letterSpacing: "-0.01em",
-        color,
-        minWidth: 0,
-      }}
-    >
-      <span style={{ whiteSpace: "nowrap" }}>+Unblocking</span>
-      <img src="/spark.png" alt="" style={{ width: sparkSize, height: sparkSize, flexShrink: 0 }} />
     </span>
   );
 }
@@ -931,6 +905,72 @@ export default function HomePage() {
                   acontecer, você já poderá começar a praticar.
                 </div>
               </Card>
+            )}
+
+            {level && (
+              <div style={{ marginBottom: 22 }}>
+                <span style={{ display: "block", fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted-on-dark)", marginBottom: 10 }}>
+                  Games
+                </span>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {[
+                    {
+                      id: "quiz",
+                      title: "Quiz",
+                      hint: "Pontos por acerto",
+                      bg: "var(--teal)",
+                      icon: (
+                        <>
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </>
+                      ),
+                    },
+                    {
+                      id: "guess",
+                      title: "Quem é?",
+                      hint: "Adivinhe pelas dicas",
+                      bg: "var(--coral)",
+                      icon: (
+                        <>
+                          <circle cx="11" cy="11" r="8" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </>
+                      ),
+                    },
+                  ].map((g) => (
+                    <button
+                      key={g.id}
+                      onClick={() => router.push(`/games?game=${g.id}`)}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "12px 14px",
+                        borderRadius: 16,
+                        border: "1px solid rgba(247,245,239,.18)",
+                        background: "rgba(247,245,239,.06)",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      <span style={{ width: 34, height: 34, borderRadius: 999, background: g.bg, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                        <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          {g.icon}
+                        </svg>
+                      </span>
+                      <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                        <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 14.5, fontWeight: 600, color: "var(--ink-on-dark)" }}>{g.title}</span>
+                        <span style={{ fontSize: 11.5, color: "var(--muted-on-dark)" }}>{g.hint}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

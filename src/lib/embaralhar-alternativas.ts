@@ -50,6 +50,12 @@ function embaralharLista(lista: unknown): unknown {
   return Array.isArray(lista) ? lista.map(embaralharItem) : lista;
 }
 
+// Mesmo embaralhamento, para uma lista solta de perguntas (ex: o Quiz dos
+// Games), fora da estrutura de uma aula.
+export function embaralharQuestoes<T extends ItemComAlternativas>(lista: T[]): T[] {
+  return Array.isArray(lista) ? lista.map(embaralharItem) : lista;
+}
+
 // Percorre os quatro lugares da aula que têm múltipla escolha. A fala usa
 // resposta aberta ("answer", texto livre) e a escrita é avaliada pela Claude —
 // nenhuma das duas tem alternativa para embaralhar.

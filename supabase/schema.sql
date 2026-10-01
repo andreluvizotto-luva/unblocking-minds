@@ -321,3 +321,27 @@ create index if not exists token_usage_user_id_idx on public.token_usage (user_i
 
 alter table public.token_usage enable row level security;
 revoke all privileges on table public.token_usage from anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- Games (Quiz e "Quem é?"): recorde e histórico de partidas por aluno.
+-- Mesmo padrão de token_usage: sem policy de RLS para anon/authenticated,
+-- só o backend (service_role) grava e lê — o aluno não consegue inserir
+-- uma pontuação inventada pelo cliente do Supabase no navegador.
+-- "detail" guarda o conteúdo da partida (ex: a personalidade), usado para
+-- não repetir a mesma nas próximas rodadas.
+-- Idempotente — seguro rodar de novo.
+-- ---------------------------------------------------------------------
+create table if not exists public.game_scores (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  game text not null check (game in ('quiz','guess')),
+  score integer not null default 0,
+  max_score integer not null default 0,
+  detail jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists game_scores_user_game_idx on public.game_scores (user_id, game, created_at desc);
+
+alter table public.game_scores enable row level security;
+revoke all privileges on table public.game_scores from anon, authenticated;

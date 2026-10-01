@@ -338,6 +338,32 @@ export function Button({
   );
 }
 
+// Lockup oficial da marca: "+Unblocking" seguido da fagulha, com um
+// espaço normal entre os dois (não sobrepõe o texto) — nunca a logo antiga
+// em PNG. Usa gap do flex em vez de margem negativa, então o espaçamento
+// acompanha o tamanho da fonte em qualquer largura de tela.
+export function Lockup({ size = 20, color = "var(--ink-on-dark)" }: { size?: number; color?: string }) {
+  const sparkSize = Math.round(size * 1.05);
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: Math.max(3, Math.round(size * 0.12)),
+        fontFamily: "'Poppins', sans-serif",
+        fontWeight: 600,
+        fontSize: size,
+        letterSpacing: "-0.01em",
+        color,
+        minWidth: 0,
+      }}
+    >
+      <span style={{ whiteSpace: "nowrap" }}>+Unblocking</span>
+      <img src="/spark.png" alt="" style={{ width: sparkSize, height: sparkSize, flexShrink: 0 }} />
+    </span>
+  );
+}
+
 // Botão "físico": sombra sólida embaixo que reduz e desloca o botão pra
 // baixo quando pressionado, imitando um botão de verdade sendo apertado.
 // Usado nos CTAs de maior destaque (começar aula, conferir respostas,

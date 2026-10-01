@@ -119,10 +119,16 @@ export async function GET() {
   // do gasto total dividido pelas aulas concluídas — que inclui as aulas
   // geradas e abandonadas no meio. A diferença entre os dois é justamente o
   // desperdício com abandono, e é essa distância que interessa acompanhar.
-  const custoDeUmaAula = Object.values(porOperacao).reduce(
-    (soma, op) => soma + (op.chamadas > 0 ? (op.entrada + op.saida) / op.chamadas : 0),
-    0
-  );
+  // Games (game_*) ficam fora desta conta e da média por aula: não fazem
+  // parte de uma aula, e somá-los aqui inflaria o "custo de uma aula". Eles
+  // continuam aparecendo na lista por operação, com o próprio custo.
+  const ehAula = (op: string) => !op.startsWith("game_");
+  const custoDeUmaAula = Object.entries(porOperacao)
+    .filter(([op]) => ehAula(op))
+    .reduce((soma, [, op]) => soma + (op.chamadas > 0 ? (op.entrada + op.saida) / op.chamadas : 0), 0);
+  const tokensDeAulas = Object.entries(porOperacao)
+    .filter(([op]) => ehAula(op))
+    .reduce((soma, [, op]) => soma + op.entrada + op.saida, 0);
 
   const tokenUsage = {
     periodo: "30 dias",
@@ -131,7 +137,7 @@ export async function GET() {
     totalSaida,
     totalChamadas: (usoTokens || []).length,
     aulasConcluidas: aulasMedidas,
-    mediaPorAula: aulasMedidas > 0 ? Math.round((totalEntrada + totalSaida) / aulasMedidas) : null,
+    mediaPorAula: aulasMedidas > 0 ? Math.round(tokensDeAulas / aulasMedidas) : null,
     porOperacao: Object.entries(porOperacao)
       .map(([operacao, v]) => ({ operacao, ...v, total: v.entrada + v.saida }))
       .sort((a, b) => b.total - a.total),
