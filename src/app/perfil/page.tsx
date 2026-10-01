@@ -9,6 +9,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { checkAccessOrRedirect } from "@/lib/access-check";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
 import { PASSWORD_RULES, mensagemDePendencias } from "@/lib/password-rules";
+import { SkillCards, skillValues, skillTrend, type LessonPoint } from "@/components/SkillProgress";
 
 type SessionRow = {
   id: string;
@@ -36,6 +37,32 @@ const SKILL_TO_FORMAT: Record<string, string> = {
   listening: "listening_speaking",
   speaking: "listening_speaking",
 };
+
+// A tabela difficulties guarda a habilidade em português.
+const DIFFICULTY_SKILL_TO_FORMAT: Record<string, string> = {
+  Leitura: "reading",
+  Escrita: "writing_grammar",
+  Escuta: "listening_speaking",
+  Fala: "listening_speaking",
+};
+
+type Difficulty = { session_id: string; skill: string; area: string };
+
+// Agrupa os erros das últimas aulas por área. A IA escreve a mesma área com
+// grafias diferentes ("Ortografia" / "ortografia"), daí a normalização.
+function topDifficulties(list: Difficulty[], sessionIds: string[], limit = 3) {
+  const recent = new Set(sessionIds);
+  const groups = new Map<string, { area: string; skill: string; count: number }>();
+  for (const d of list) {
+    if (!recent.has(d.session_id) || !d.area) continue;
+    const area = d.area.trim().replace(/\s+/g, " ");
+    const k = `${d.skill}|${area.toLocaleLowerCase("pt-BR")}`;
+    const g = groups.get(k);
+    if (g) g.count++;
+    else groups.set(k, { area: area.charAt(0).toLocaleUpperCase("pt-BR") + area.slice(1), skill: d.skill, count: 1 });
+  }
+  return Array.from(groups.values()).sort((a, b) => b.count - a.count).slice(0, limit);
+}
 
 const RANGES = [
   { key: "7", label: "7 dias", days: 7 },
@@ -95,21 +122,17 @@ async function fotoParaJpeg(file: File): Promise<Blob> {
   }
 }
 
-// Frase única sobre o momento do aluno: compara as 3 últimas aulas com as 3
-// anteriores, habilidade por habilidade.
-function buildInsight(points: { scores: any }[]): string {
+// Frase única sobre o momento do aluno: por habilidade, compara as 3 últimas
+// aulas que a treinaram com as 3 anteriores.
+function buildInsight(points: LessonPoint[]): string {
   if (points.length < 2) return "Complete mais aulas para ver aqui como você está evoluindo.";
-  const recent = points.slice(-3);
-  const before = points.slice(-6, -3).length > 0 ? points.slice(-6, -3) : points.slice(0, -3);
-  if (before.length === 0) return "Continue assim: com mais algumas aulas você começa a ver sua evolução.";
 
   const deltas: { key: string; delta: number }[] = [];
   for (const key of Object.keys(SKILL_LABELS)) {
-    const r = recent.map((p) => p.scores?.[key]).filter((v): v is number => typeof v === "number");
-    const b = before.map((p) => p.scores?.[key]).filter((v): v is number => typeof v === "number");
-    if (r.length && b.length) deltas.push({ key, delta: mean(r) - mean(b) });
+    const t = skillTrend(skillValues(points, key).map((v) => v.value));
+    if (t !== null) deltas.push({ key, delta: t });
   }
-  if (deltas.length === 0) return "Continue praticando: suas notas vão aparecer aqui.";
+  if (deltas.length === 0) return "Continue assim: com mais algumas aulas de cada habilidade você começa a ver sua evolução.";
 
   const best = deltas.reduce((a, b) => (b.delta > a.delta ? b : a));
   if (best.delta >= 0.3) {
@@ -169,7 +192,8 @@ export default function PerfilPage() {
   const [nextAchievement, setNextAchievement] = useState<AchievementItem | null>(null);
 
   const [range, setRange] = useState("all");
-  const [skillFilter, setSkillFilter] = useState("all");
+  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
+  const [difficulties, setDifficulties] = useState<Difficulty[]>([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [openSession, setOpenSession] = useState<string | null>(null);
 
@@ -271,6 +295,12 @@ export default function PerfilPage() {
       (reportsData || []).forEach((r: any) => {
         reportsBySessionId[r.session_id] = r;
       });
+
+      const { data: diffData } = await supabase
+        .from("difficulties")
+        .select("session_id, skill, area")
+        .in("session_id", sessionIds);
+      setDifficulties((diffData as Difficulty[]) || []);
     }
 
     setSessions(
@@ -386,17 +416,21 @@ export default function PerfilPage() {
 
   const insight = buildInsight(allPoints);
 
-  // Ponto forte e a trabalhar: média por habilidade nas últimas 5 aulas.
-  const recent5 = allPoints.slice(-5);
+  // Ponto forte e a trabalhar: média das últimas 5 aulas de cada habilidade.
   const skillAvgs = Object.keys(SKILL_LABELS)
     .map((key) => {
-      const vals = recent5.map((p) => p.scores?.[key]).filter((v): v is number => typeof v === "number");
+      const vals = skillValues(allPoints, key).slice(-5).map((v) => v.value);
       return vals.length ? { key, avg: mean(vals) } : null;
     })
     .filter((x): x is { key: string; avg: number } => !!x)
     .sort((a, b) => b.avg - a.avg);
   const strongest = skillAvgs.length >= 2 ? skillAvgs[0] : null;
   const weakest = skillAvgs.length >= 2 ? skillAvgs[skillAvgs.length - 1] : null;
+
+  const detailPoints = selectedSkill
+    ? skillValues(chartPoints, selectedSkill).map((v) => ({ date: v.date, [selectedSkill]: v.value }))
+    : [];
+  const topErrors = topDifficulties(difficulties, completed.slice(-10).map((s) => s.id));
 
   const weekStart = startOfWeek();
   const doneThisWeek = completed.filter((s) => new Date(s.created_at).getTime() >= weekStart).length;
@@ -655,25 +689,63 @@ export default function PerfilPage() {
         </div>
 
         {tab === "evolucao" && (
-          <Card style={{ marginBottom: 20 }}>
-            <SectionHeading>Evolução por habilidade</SectionHeading>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-              {RANGES.map((r) => (
-                <Chip key={r.key} active={range === r.key} onClick={() => setRange(r.key)}>{r.label}</Chip>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-              <Chip active={skillFilter === "all"} onClick={() => setSkillFilter("all")}>Todas</Chip>
-              {Object.entries(SKILL_LABELS).map(([key, label]) => (
-                <Chip key={key} active={skillFilter === key} onClick={() => setSkillFilter(key)}>{label}</Chip>
-              ))}
-            </div>
-            {loadingData ? (
-              <div style={{ fontSize: 13, color: "var(--muted)", padding: "20px 0" }}>Carregando…</div>
-            ) : (
-              <EvolutionChart points={chartPoints} only={skillFilter} />
+          <>
+            <Card style={{ marginBottom: 14 }}>
+              <SectionHeading>Evolução por habilidade</SectionHeading>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                {RANGES.map((r) => (
+                  <Chip key={r.key} active={range === r.key} onClick={() => setRange(r.key)}>{r.label}</Chip>
+                ))}
+              </div>
+              {loadingData ? (
+                <div style={{ fontSize: 13, color: "var(--muted)", padding: "20px 0" }}>Carregando…</div>
+              ) : chartPoints.length === 0 ? (
+                <div style={{ fontSize: 13, color: "var(--muted)", padding: "10px 0" }}>Nenhuma aula concluída neste período.</div>
+              ) : (
+                <>
+                  <SkillCards points={chartPoints} selected={selectedSkill} onSelect={setSelectedSkill} />
+                  {selectedSkill && (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>{SKILL_LABELS[selectedSkill]} aula a aula</div>
+                      <EvolutionChart points={detailPoints} only={selectedSkill} />
+                    </div>
+                  )}
+                </>
+              )}
+            </Card>
+
+            {topErrors.length > 0 && (
+              <Card style={{ marginBottom: 20 }}>
+                <SectionHeading>Seus tropeços mais comuns</SectionHeading>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>Nas suas últimas 10 aulas</div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {topErrors.map((e, i) => (
+                    <div
+                      key={e.skill + e.area}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", border: "1px solid var(--line)", background: "#fbf8f1", borderRadius: 3 }}
+                    >
+                      <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 16, fontWeight: 600, color: "var(--muted)", width: 16 }}>{i + 1}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{e.area}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--muted)" }}>
+                          {e.skill} · {e.count} {e.count === 1 ? "vez" : "vezes"}
+                        </div>
+                      </div>
+                      {DIFFICULTY_SKILL_TO_FORMAT[e.skill] && (
+                        <Button
+                          variant="subtle"
+                          onClick={() => router.push(`/?format=${DIFFICULTY_SKILL_TO_FORMAT[e.skill]}`)}
+                          style={{ padding: "6px 12px", fontSize: 12.5, flexShrink: 0 }}
+                        >
+                          Treinar
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
             )}
-          </Card>
+          </>
         )}
 
         {tab === "historico" && (
