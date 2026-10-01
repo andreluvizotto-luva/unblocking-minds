@@ -13,6 +13,7 @@ import {
   WritingBlock,
 } from "@/components/SkillBlocks";
 import { BottomNav } from "@/components/BottomNav";
+import { DiscoverCard } from "@/components/DiscoverCard";
 import { checkAccessOrRedirect } from "@/lib/access-check";
 import { ShareResultButton } from "@/components/ShareResultCard";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
@@ -1004,6 +1005,8 @@ export default function HomePage() {
                 </div>
               </Card>
             )}
+
+            {level && <DiscoverCard level={level} />}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <SectionHeading onDark>Suas conquistas</SectionHeading>
