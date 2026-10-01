@@ -43,6 +43,22 @@ const TOPIC_KINDS = [
 
 const CUSTOM_TOPIC_MAX = 140;
 
+// Saudação em inglês, do jeito que se fala de verdade — o aluno já entra
+// no app "ouvindo" inglês. Respeita a hora do dia e mistura algumas
+// casuais que servem a qualquer hora, para não repetir sempre a mesma.
+const GREETINGS_BY_PERIOD: Record<"morning" | "afternoon" | "evening", string[]> = {
+  morning: ["Good morning", "Morning", "Rise and shine", "Top of the morning"],
+  afternoon: ["Good afternoon", "Afternoon", "Hope your day's going well"],
+  evening: ["Good evening", "Evening", "Hope you had a good day"],
+};
+const GREETINGS_ANYTIME = ["Hey", "Hey there", "Hi there", "What's up", "Welcome back", "Look who's here", "Great to see you"];
+
+function pickGreeting(hour: number): string {
+  const period = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  const pool = [...GREETINGS_BY_PERIOD[period], ...GREETINGS_ANYTIME];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 // Ordem canônica das 5 habilidades. Uma aula pode não ter todas — o formato
 // escolhido decide quais entram (ver FORMAT_SKILLS) — então o pedido real de
 // cada aula é sempre derivado do conteúdo gerado (deriveSkillOrder), nunca
@@ -297,6 +313,7 @@ export default function HomePage() {
   const [currentStreak, setCurrentStreak] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
   const quote = React.useMemo(() => getQuoteOfDay(), []);
+  const greeting = React.useMemo(() => pickGreeting(new Date().getHours()), []);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -659,9 +676,9 @@ export default function HomePage() {
           <div>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 14 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 14, color: "var(--muted-on-dark)" }}>Boa {new Date().getHours() < 12 ? "manhã" : new Date().getHours() < 18 ? "tarde" : "noite"},</span>
+                <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 14, color: "var(--muted-on-dark)" }}>{greeting},</span>
                 <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 24, lineHeight: 1.15, fontWeight: 600, letterSpacing: "-0.01em" }}>
-                  {studentName ? studentName.split(" ")[0] : "por aqui"}
+                  {studentName ? studentName.split(" ")[0] : "friend"}
                 </span>
               </div>
               {currentStreak > 0 && (
