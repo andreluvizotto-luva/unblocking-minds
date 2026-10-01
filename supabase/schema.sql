@@ -338,13 +338,14 @@ revoke all privileges on table public.token_usage from anon, authenticated;
 create table if not exists public.game_scores (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
-  game text not null check (game in ('quiz','guess')),
+  game text not null check (game in ('quiz','guess','trivia','words')),
   score integer not null default 0,
   max_score integer not null default 0,
   detail jsonb,
   created_at timestamptz not null default now()
 );
 
+-- Bancos criados antes de trivia/words: ver Claude outputs/liberar-games-trivia-e-palavras.sql
 create index if not exists game_scores_user_game_idx on public.game_scores (user_id, game, created_at desc);
 
 alter table public.game_scores enable row level security;

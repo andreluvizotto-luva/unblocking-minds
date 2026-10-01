@@ -64,7 +64,16 @@ export async function POST(req: Request) {
   const detail =
     game === "guess"
       ? { name: typeof d.name === "string" ? d.name.slice(0, 100) : null, cluesShown: Number(d.cluesShown) || 0, solved: !!d.solved }
-      : { correct: Number(d.correct) || 0, total: Number(d.total) || 0 };
+      : game === "words"
+        ? { letters: typeof d.letters === "string" ? d.letters.slice(0, 7) : null, found: Number(d.found) || 0, possible: Number(d.possible) || 0 }
+        : game === "trivia"
+          ? {
+              correct: Number(d.correct) || 0,
+              total: Number(d.total) || 0,
+              // Perguntas jogadas, para a próxima rodada não repetir.
+              seen: (Array.isArray(d.seen) ? d.seen : []).filter((x: any) => typeof x === "string").slice(0, 12).map((x: string) => x.slice(0, 90)),
+            }
+          : { correct: Number(d.correct) || 0, total: Number(d.total) || 0 };
 
   const { error } = await supabaseAdmin()
     .from("game_scores")

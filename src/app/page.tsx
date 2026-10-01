@@ -918,7 +918,7 @@ export default function HomePage() {
             {level && (
               <Card style={{ marginBottom: 22 }}>
                 <SectionHeading>Games</SectionHeading>
-                <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 8 }}>
                   {[
                     {
                       id: "quiz",
@@ -930,6 +930,32 @@ export default function HomePage() {
                           <circle cx="12" cy="12" r="10" />
                           <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                           <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </>
+                      ),
+                    },
+                    {
+                      id: "trivia",
+                      title: "Trivia",
+                      hint: "Cultura geral",
+                      bg: "var(--sage)",
+                      icon: (
+                        <>
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="2" y1="12" x2="22" y2="12" />
+                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                        </>
+                      ),
+                    },
+                    {
+                      id: "words",
+                      title: "Palavras",
+                      hint: "Letras contra o relógio",
+                      bg: "var(--mustard)",
+                      icon: (
+                        <>
+                          <polyline points="4 7 4 4 20 4 20 7" />
+                          <line x1="9" y1="20" x2="15" y2="20" />
+                          <line x1="12" y1="4" x2="12" y2="20" />
                         </>
                       ),
                     },

@@ -46,7 +46,7 @@ export const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 // Contexto para registrar quanto cada operação consumiu. Opcional: sem ele
 // a chamada funciona igual, só não é contabilizada.
 export type UsoMeta = {
-  operation: "session_generate" | "report_generate" | "speaking_evaluate" | "writing_evaluate" | "game_quiz" | "game_guess";
+  operation: "session_generate" | "report_generate" | "speaking_evaluate" | "writing_evaluate" | "game_quiz" | "game_guess" | "game_trivia";
   userId: string;
   sessionId?: string | null;
 };

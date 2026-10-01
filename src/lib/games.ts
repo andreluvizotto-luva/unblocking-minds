@@ -17,9 +17,30 @@ export function guessPointsFor(cluesShown: number): number {
   return Math.max(0, GUESS_MAX_SCORE - GUESS_COST_PER_CLUE * Math.max(0, cluesShown - 1));
 }
 
+// Trivia: cultura geral, em inglês. Mais perguntas e pontos que o Quiz.
+export const TRIVIA_QUESTIONS = 10;
+export const TRIVIA_POINTS_PER_QUESTION = 10;
+export const TRIVIA_MAX_SCORE = TRIVIA_QUESTIONS * TRIVIA_POINTS_PER_QUESTION;
+
+// Palavras: 7 letras (2 vogais e 5 consoantes), tempo contado. Palavras mais
+// longas valem mais; o teto limita o placar salvo, já que o número de
+// palavras possíveis varia de rodada para rodada.
+export const WORDS_LETTERS = 7;
+export const WORDS_VOWELS = 2;
+export const WORDS_MIN_COMMON = 5;
+export const WORDS_SECONDS = 120;
+export const WORDS_MAX_SCORE = 300;
+
+export function wordPoints(word: string): number {
+  const table: Record<number, number> = { 3: 10, 4: 20, 5: 35, 6: 55, 7: 80 };
+  return table[word.length] ?? 0;
+}
+
 export const GAME_MAX_SCORE: Record<string, number> = {
   quiz: QUIZ_MAX_SCORE,
   guess: GUESS_MAX_SCORE,
+  trivia: TRIVIA_MAX_SCORE,
+  words: WORDS_MAX_SCORE,
 };
 
 // Normalização de nomes do "Quem é?", usada nos dois lados: no servidor,

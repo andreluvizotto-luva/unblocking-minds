@@ -7,7 +7,7 @@ import { GUESS_COST_PER_CLUE, GUESS_MAX_SCORE, guessPointsFor, normalizeName } f
 // Grava a partida no recorde/histórico. Falha aqui nunca pode estragar o
 // fim do jogo para o aluno — no pior caso a partida só não entra no
 // histórico (ex: tabela ainda não criada no banco).
-async function saveScore(game: "quiz" | "guess", score: number, detail: Record<string, unknown>) {
+export async function saveScore(game: "quiz" | "guess" | "trivia" | "words", score: number, detail: Record<string, unknown>) {
   try {
     await fetch("/api/games/score", {
       method: "POST",
@@ -19,7 +19,7 @@ async function saveScore(game: "quiz" | "guess", score: number, detail: Record<s
   }
 }
 
-const kicker: React.CSSProperties = {
+export const kicker: React.CSSProperties = {
   fontFamily: "'Work Sans', sans-serif",
   fontSize: 10.5,
   fontWeight: 600,
@@ -28,7 +28,7 @@ const kicker: React.CSSProperties = {
   color: "var(--mustard-dark)",
 };
 
-function ScorePill({ points }: { points: number }) {
+export function ScorePill({ points }: { points: number }) {
   return (
     <span
       style={{
@@ -51,7 +51,7 @@ function ScorePill({ points }: { points: number }) {
   );
 }
 
-function ErrorBox({ message, onRetry, onExit }: { message: string; onRetry: () => void; onExit: () => void }) {
+export function ErrorBox({ message, onRetry, onExit }: { message: string; onRetry: () => void; onExit: () => void }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <p style={{ margin: 0, fontSize: 14, color: "var(--wine)", lineHeight: 1.5 }}>{message}</p>
@@ -65,7 +65,7 @@ function ErrorBox({ message, onRetry, onExit }: { message: string; onRetry: () =
   );
 }
 
-const linkButton: React.CSSProperties = {
+export const linkButton: React.CSSProperties = {
   background: "none",
   border: "none",
   color: "var(--muted)",
@@ -77,7 +77,8 @@ const linkButton: React.CSSProperties = {
 };
 
 // ---------- Quiz ----------
-export function QuizGame({ onExit }: { onExit: () => void }) {
+export function QuizGame({ onExit, variant = "quiz" }: { onExit: () => void; variant?: "quiz" | "trivia" }) {
+  const trivia = variant === "trivia";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [questions, setQuestions] = useState<any[]>([]);
@@ -97,13 +98,13 @@ export function QuizGame({ onExit }: { onExit: () => void }) {
     setCorrect(0);
     setFinished(false);
     try {
-      const res = await fetch("/api/games/quiz", { method: "POST" });
+      const res = await fetch(trivia ? "/api/games/trivia" : "/api/games/quiz", { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setQuestions(data.questions || []);
       setPoints(data.pointsPerQuestion || 10);
     } catch (e: any) {
-      setError(e?.message || "Não foi possível montar o quiz agora. Tente de novo em alguns instantes.");
+      setError(e?.message || `Não foi possível montar o ${trivia ? "trivia" : "quiz"} agora. Tente de novo em alguns instantes.`);
     }
     setLoading(false);
   }
@@ -115,8 +116,12 @@ export function QuizGame({ onExit }: { onExit: () => void }) {
   if (loading) {
     return (
       <ProcessingAnimation
-        title="Montando o seu quiz…"
-        messages={["Speed up guys! Separando as perguntas…", "Calibrando pro seu nível…", "Quase lá…"]}
+        title={trivia ? "Montando o seu trivia…" : "Montando o seu quiz…"}
+        messages={
+          trivia
+            ? ["Did you know? Buscando curiosidades…", "Misturando os temas…", "Quase lá…"]
+            : ["Speed up guys! Separando as perguntas…", "Calibrando pro seu nível…", "Quase lá…"]
+        }
       />
     );
   }
@@ -125,7 +130,7 @@ export function QuizGame({ onExit }: { onExit: () => void }) {
   if (finished) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "center" }}>
-        <span style={kicker}>Quiz concluído</span>
+        <span style={kicker}>{trivia ? "Trivia concluído" : "Quiz concluído"}</span>
         <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 52, fontWeight: 700, lineHeight: 1, color: "var(--ink)" }}>{score}</div>
         <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
           pontos · {correct} de {questions.length} certas
@@ -159,7 +164,11 @@ export function QuizGame({ onExit }: { onExit: () => void }) {
     playAdvanceSound();
     if (isLast) {
       setFinished(true);
-      saveScore("quiz", score, { correct, total: questions.length });
+      saveScore(variant, score, {
+        correct,
+        total: questions.length,
+        ...(trivia ? { seen: questions.map((x: any) => String(x.q).slice(0, 90)) } : {}),
+      });
     } else {
       setIdx(idx + 1);
       setPicked(null);
@@ -171,6 +180,7 @@ export function QuizGame({ onExit }: { onExit: () => void }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <span style={kicker}>
           Pergunta {idx + 1} de {questions.length}
+          {trivia && q.category ? ` · ${q.category}` : ""}
         </span>
         <ScorePill points={score} />
       </div>

@@ -7,9 +7,11 @@ import { Lockup } from "@/components/ui";
 import { BottomNav } from "@/components/BottomNav";
 import { checkAccessOrRedirect } from "@/lib/access-check";
 import { QuizGame, GuessGame } from "@/components/Games";
-import { QUIZ_MAX_SCORE, GUESS_MAX_SCORE } from "@/lib/games";
+import { WordsGame } from "@/components/WordsGame";
+import { QUIZ_MAX_SCORE, GUESS_MAX_SCORE, TRIVIA_MAX_SCORE, WORDS_MAX_SCORE } from "@/lib/games";
 
-type View = "menu" | "quiz" | "guess";
+type View = "menu" | "quiz" | "guess" | "trivia" | "words";
+const VIEWS = ["quiz", "guess", "trivia", "words"];
 
 const GAMES = [
   {
@@ -39,9 +41,37 @@ const GAMES = [
       </>
     ),
   },
+  {
+    id: "trivia" as const,
+    title: "Trivia",
+    description: "Cultura geral em inglês: geografia, ciência, história, cinema e mais.",
+    max: TRIVIA_MAX_SCORE,
+    color: "var(--sage)",
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+      </>
+    ),
+  },
+  {
+    id: "words" as const,
+    title: "Palavras",
+    description: "Forme palavras com 7 letras sorteadas, contra o relógio. Palavras maiores valem mais.",
+    max: WORDS_MAX_SCORE,
+    color: "var(--mustard)",
+    icon: (
+      <>
+        <polyline points="4 7 4 4 20 4 20 7" />
+        <line x1="9" y1="20" x2="15" y2="20" />
+        <line x1="12" y1="4" x2="12" y2="20" />
+      </>
+    ),
+  },
 ];
 
-const GAME_LABEL: Record<string, string> = { quiz: "Quiz", guess: "Quem é?" };
+const GAME_LABEL: Record<string, string> = { quiz: "Quiz", guess: "Quem é?", trivia: "Trivia", words: "Palavras" };
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -81,7 +111,7 @@ export default function GamesPage() {
       // (/games?game=quiz). Lido via window em vez de useSearchParams, que
       // exigiria envolver a página inteira num Suspense.
       const g = new URLSearchParams(window.location.search).get("game");
-      if (g === "quiz" || g === "guess") setView(g);
+      if (g && VIEWS.includes(g)) setView(g as View);
 
       loadScores();
     });
@@ -115,7 +145,7 @@ export default function GamesPage() {
           </div>
           <div>
             <h1 style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontSize: 26, fontWeight: 600, color: "var(--ink-on-dark)", letterSpacing: "-0.02em" }}>
-              {view === "quiz" ? "Quiz" : view === "guess" ? "Quem é?" : "Games"}
+              {view === "menu" ? "Games" : GAME_LABEL[view]}
             </h1>
             {view === "menu" && (
               <p style={{ margin: "4px 0 0", fontFamily: "'Caveat', cursive", fontSize: 20, color: "var(--mustard-bright)" }}>Let&apos;s play! Pratique inglês jogando.</p>
@@ -128,6 +158,8 @@ export default function GamesPage() {
         <div style={{ maxWidth: 640, margin: "0 auto", color: "var(--ink)" }}>
           {view === "quiz" && <QuizGame onExit={exitGame} />}
           {view === "guess" && <GuessGame onExit={exitGame} />}
+          {view === "trivia" && <QuizGame variant="trivia" onExit={exitGame} />}
+          {view === "words" && <WordsGame onExit={exitGame} />}
 
           {view === "menu" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -177,7 +209,13 @@ export default function GamesPage() {
                       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         <strong style={{ fontWeight: 600 }}>{GAME_LABEL[h.game] || h.game}</strong>
                         {h.game === "guess" && h.detail?.name ? <span style={{ color: "var(--muted)" }}> · {h.detail.name}</span> : null}
-                        {h.game === "quiz" && h.detail?.total ? (
+                        {h.game === "words" && h.detail?.possible ? (
+                          <span style={{ color: "var(--muted)" }}>
+                            {" "}
+                            · {h.detail.found} palavras
+                          </span>
+                        ) : null}
+                        {(h.game === "quiz" || h.game === "trivia") && h.detail?.total ? (
                           <span style={{ color: "var(--muted)" }}>
                             {" "}
                             · {h.detail.correct}/{h.detail.total} certas
