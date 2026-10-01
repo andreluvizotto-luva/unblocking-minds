@@ -908,11 +908,9 @@ export default function HomePage() {
             )}
 
             {level && (
-              <div style={{ marginBottom: 22 }}>
-                <span style={{ display: "block", fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted-on-dark)", marginBottom: 10 }}>
-                  Games
-                </span>
-                <div style={{ display: "flex", gap: 10 }}>
+              <Card style={{ marginBottom: 22 }}>
+                <SectionLabel>Games</SectionLabel>
+                <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                   {[
                     {
                       id: "quiz",
@@ -948,11 +946,11 @@ export default function HomePage() {
                         minWidth: 0,
                         display: "flex",
                         alignItems: "center",
-                        gap: 10,
-                        padding: "12px 14px",
+                        gap: 8,
+                        padding: 12,
                         borderRadius: 16,
-                        border: "1px solid rgba(247,245,239,.18)",
-                        background: "rgba(247,245,239,.06)",
+                        border: "1px solid var(--line)",
+                        background: "#fbf8f1",
                         cursor: "pointer",
                         textAlign: "left",
                         fontFamily: "inherit",
@@ -964,13 +962,13 @@ export default function HomePage() {
                         </svg>
                       </span>
                       <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                        <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 14.5, fontWeight: 600, color: "var(--ink-on-dark)" }}>{g.title}</span>
-                        <span style={{ fontSize: 11.5, color: "var(--muted-on-dark)" }}>{g.hint}</span>
+                        <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 14.5, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap" }}>{g.title}</span>
+                        <span style={{ fontSize: 11.5, lineHeight: 1.3, color: "var(--muted)" }}>{g.hint}</span>
                       </span>
                     </button>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
