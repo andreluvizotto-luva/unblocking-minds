@@ -17,7 +17,7 @@ const GAMES = [
   {
     id: "quiz" as const,
     title: "Quiz",
-    description: "Perguntas rápidas de vocabulário, expressões e cultura. Cada acerto vale pontos.",
+    description: "Quick questions on vocabulary, expressions and culture. Every right answer earns points.",
     max: QUIZ_MAX_SCORE,
     color: "var(--teal)",
     icon: (
@@ -31,7 +31,7 @@ const GAMES = [
   {
     id: "guess" as const,
     title: "Who is it?",
-    description: "Descubra a personalidade pelas dicas em inglês. Quanto menos dicas pedir, mais pontos.",
+    description: "Guess the famous person from the clues. The fewer clues you use, the more points you earn.",
     max: GUESS_MAX_SCORE,
     color: "var(--coral)",
     icon: (
@@ -44,7 +44,7 @@ const GAMES = [
   {
     id: "trivia" as const,
     title: "Trivia",
-    description: "Cultura geral em inglês: geografia, ciência, história, cinema e mais.",
+    description: "General knowledge: geography, science, history, movies and more.",
     max: TRIVIA_MAX_SCORE,
     color: "var(--sage)",
     icon: (
@@ -58,7 +58,7 @@ const GAMES = [
   {
     id: "words" as const,
     title: "Word Builder",
-    description: "Forme palavras com 7 letras sorteadas, contra o relógio. Palavras maiores valem mais.",
+    description: "Make words from 7 random letters before time runs out. Longer words score more.",
     max: WORDS_MAX_SCORE,
     color: "var(--mustard)",
     icon: (

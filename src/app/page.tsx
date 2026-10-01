@@ -923,7 +923,7 @@ export default function HomePage() {
                     {
                       id: "quiz",
                       title: "Quiz",
-                      hint: "Pontos por acerto",
+                      hint: "Points per answer",
                       bg: "var(--teal)",
                       icon: (
                         <>
@@ -936,7 +936,7 @@ export default function HomePage() {
                     {
                       id: "trivia",
                       title: "Trivia",
-                      hint: "Cultura geral",
+                      hint: "General knowledge",
                       bg: "var(--sage)",
                       icon: (
                         <>
@@ -949,7 +949,7 @@ export default function HomePage() {
                     {
                       id: "words",
                       title: "Word Builder",
-                      hint: "Letras contra o relógio",
+                      hint: "Letters vs. the clock",
                       bg: "var(--mustard)",
                       icon: (
                         <>
@@ -962,7 +962,7 @@ export default function HomePage() {
                     {
                       id: "guess",
                       title: "Who is it?",
-                      hint: "Adivinhe pelas dicas",
+                      hint: "Guess from the clues",
                       bg: "var(--coral)",
                       icon: (
                         <>
