@@ -80,6 +80,49 @@ const LESSON_FORMATS = [
   { id: "full", label: "Aula completa", skills: ALL_SKILLS, minutes: "15-20 min" },
 ];
 
+// Selo colorido com ícone de contorno para cada formato de aula — mesma
+// linguagem visual do material de marca (círculo colorido + ícone branco).
+const FORMAT_ICON_CONFIG: Record<string, { bg: string; path: React.ReactNode }> = {
+  reading: {
+    bg: "var(--teal)",
+    path: (
+      <>
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+      </>
+    ),
+  },
+  listening_speaking: {
+    bg: "var(--coral)",
+    path: (
+      <>
+        <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+        <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+      </>
+    ),
+  },
+  writing_grammar: {
+    bg: "var(--success)",
+    path: <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />,
+  },
+  full: {
+    bg: "#9b7fd4",
+    path: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
+  },
+};
+
+function FormatIcon({ id, size = 22 }: { id: string; size?: number }) {
+  const c = FORMAT_ICON_CONFIG[id];
+  if (!c) return null;
+  return (
+    <span style={{ width: size, height: size, borderRadius: 999, background: c.bg, display: "grid", placeItems: "center", flexShrink: 0 }}>
+      <svg width={size * 0.56} height={size * 0.56} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        {c.path}
+      </svg>
+    </span>
+  );
+}
+
 // Lockup oficial da marca: "+Unblocking" seguido da fagulha, com um
 // espaço normal entre os dois (não sobrepõe o texto) — nunca a logo antiga
 // em PNG. Usa gap do flex em vez de margem negativa, então o espaçamento
@@ -619,8 +662,11 @@ export default function HomePage() {
                     onClick={() => setFormat(f.id)}
                     style={{
                       cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
                       borderRadius: 20,
-                      padding: "8px 16px",
+                      padding: "6px 16px 6px 6px",
                       fontSize: 13.5,
                       fontWeight: 500,
                       transition: "transform 0.12s ease, background 0.12s ease",
@@ -630,6 +676,7 @@ export default function HomePage() {
                       color: "var(--ink)",
                     }}
                   >
+                    <FormatIcon id={f.id} size={26} />
                     {f.label}
                   </button>
                 ))}
