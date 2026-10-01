@@ -164,6 +164,10 @@ alter table public.profiles add column if not exists avatar_url text;
 alter table public.profiles add column if not exists location text;
 alter table public.profiles add column if not exists website text;
 alter table public.reports add column if not exists scores jsonb;
+-- Meta semanal de aulas (Perfil → Preferências). O bucket "avatars" da foto
+-- de perfil foi criado à parte (já executado).
+alter table public.profiles add column if not exists weekly_goal smallint not null default 3
+  check (weekly_goal between 1 and 14);
 
 -- ---------------------------------------------------------------------
 -- Painel de admin: papel de administrador, ativação/desativação de

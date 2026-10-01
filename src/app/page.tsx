@@ -289,6 +289,14 @@ export default function HomePage() {
   const quote = React.useMemo(() => getQuoteOfDay(), []);
   const greeting = React.useMemo(() => pickGreeting(new Date().getHours()), []);
 
+  // O atalho "Treinar …" do Perfil chega aqui com ?format=, já com o formato
+  // da aula escolhido. Lido via window (sem useSearchParams, que exigiria
+  // um Suspense em volta da página inteira).
+  useEffect(() => {
+    const f = new URLSearchParams(window.location.search).get("format");
+    if (f && LESSON_FORMATS.some((x) => x.id === f)) setFormat(f);
+  }, []);
+
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) {

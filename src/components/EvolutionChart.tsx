@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 
 // Paleta categórica (ver skill de dataviz do projeto) — ordem fixa, nunca ciclada.
-const SERIES = [
+const ALL_SERIES = [
   { key: "reading", label: "Leitura", color: "#2a78d6" },
   { key: "grammar", label: "Gramática", color: "#c23653" },
   { key: "listening", label: "Escuta", color: "#eb6834" },
@@ -29,8 +29,12 @@ const PAD_R = 16;
 const PAD_T = 16;
 const PAD_B = 34;
 
-export function EvolutionChart({ points }: { points: Point[] }) {
+// `only` mostra uma habilidade por vez (a chave de ALL_SERIES); sem ele,
+// todas as linhas. Com seis linhas juntas o gráfico fica difícil de ler no
+// celular.
+export function EvolutionChart({ points, only }: { points: Point[]; only?: string }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const SERIES = only && only !== "all" ? ALL_SERIES.filter((s) => s.key === only) : ALL_SERIES;
 
   if (points.length < 2) {
     return (
@@ -73,7 +77,7 @@ export function EvolutionChart({ points }: { points: Point[] }) {
     return d;
   }
 
-  function linePath(key: (typeof SERIES)[number]["key"]) {
+  function linePath(key: (typeof ALL_SERIES)[number]["key"]) {
     // Divide em segmentos contínuos (sem "furos" onde não há dado) e suaviza
     // cada um separadamente, para não interpolar por cima de um valor ausente.
     const segments: { x: number; y: number }[][] = [];

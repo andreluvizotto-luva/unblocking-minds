@@ -7,8 +7,27 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 // Sempre chamados de dentro de um onClick, então o gesto do usuário já
 // libera o áudio nos navegadores que exigem isso (Safari/iOS incluído).
 let sharedAudioCtx: AudioContext | null = null;
+
+// Preferência do aluno (Perfil → Preferências). Fica só neste aparelho, em
+// localStorage: é um conforto, não um dado que precise acompanhar a conta.
+const SOUND_KEY = "unblocking:sound";
+export function isSoundEnabled(): boolean {
+  try {
+    return typeof window === "undefined" || window.localStorage.getItem(SOUND_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+export function setSoundEnabled(on: boolean) {
+  try {
+    window.localStorage.setItem(SOUND_KEY, on ? "on" : "off");
+  } catch {
+    // sem armazenamento (janela privada): a preferência vale só até recarregar
+  }
+}
+
 function getAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || !isSoundEnabled()) return null;
   try {
     const Ctor = window.AudioContext || (window as any).webkitAudioContext;
     if (!Ctor) return null;
