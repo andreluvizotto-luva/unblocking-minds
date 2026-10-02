@@ -16,6 +16,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { DiscoverCard } from "@/components/DiscoverCard";
 import { BillingBanner } from "@/components/BillingBanner";
 import { LevelPicker } from "@/components/LevelPicker";
+import { LevelCheck } from "@/components/LevelCheck";
 import { checkAccessOrRedirect } from "@/lib/access-check";
 import { ShareResultButton } from "@/components/ShareResultCard";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
@@ -644,7 +645,7 @@ export default function HomePage() {
   if (stage === "report") {
     return (
       <>
-        <ReportView loading={reportLoading} report={report} topic={content?.topic} level={level} onRestart={restart} log={log} />
+        <ReportView loading={reportLoading} report={report} topic={content?.topic} level={level} onRestart={restart} log={log} sessionId={sessionId} onLevelChange={setLevel} />
         <BottomNav onSignOut={signOut} isAdmin={isAdmin} />
       </>
     );
@@ -1073,7 +1074,7 @@ function scoreBarColor(score?: string) {
   return score === "forte" ? "#1a7a44" : score === "a desenvolver" ? "var(--wine)" : "var(--mustard-dark)";
 }
 
-function ReportView({ loading, report, topic, level, onRestart, log }: any) {
+function ReportView({ loading, report, topic, level, onRestart, log, sessionId, onLevelChange }: any) {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", padding: "24px 16px 100px" }}>
@@ -1166,6 +1167,7 @@ function ReportView({ loading, report, topic, level, onRestart, log }: any) {
 
       <div style={{ background: "#f7f5ef", padding: "22px 22px 100px" }}>
         <div style={{ maxWidth: 640, margin: "0 auto", color: "var(--ink)" }}>
+          <LevelCheck sessionId={sessionId} onLevelChange={onLevelChange} />
           {unlockedAchievements.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
               {unlockedAchievements.map((a: any) => (
