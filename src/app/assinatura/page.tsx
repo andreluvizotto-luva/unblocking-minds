@@ -102,6 +102,7 @@ export default function AssinaturaPage() {
             <PhysicalButton onClick={pay} disabled={opening} background="var(--teal)" color="var(--ink)" shadowColor="var(--mustard)">
               {opening ? "Abrindo pagamento…" : s.category === "app" ? "Renovar por mais 30 dias" : "Assinar agora"}
             </PhysicalButton>
+            <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--muted)" }}>Taxas da operadora de pagamento (Pix ou cartão) podem ser cobradas na operação.</p>
             {s.category === "app" && ok && (
               <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--muted)" }}>Renovando agora, os 30 dias são somados ao que ainda falta.</p>
             )}
