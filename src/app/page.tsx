@@ -1018,7 +1018,7 @@ export default function HomePage() {
                         </svg>
                       </span>
                       <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                        <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 14.5, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap" }}>{g.title}</span>
+                        <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 14, lineHeight: 1.2, fontWeight: 600, color: "var(--ink)", overflowWrap: "anywhere" }}>{g.title}</span>
                         <span style={{ fontSize: 11.5, lineHeight: 1.3, color: "var(--muted)" }}>{g.hint}</span>
                       </span>
                     </button>
