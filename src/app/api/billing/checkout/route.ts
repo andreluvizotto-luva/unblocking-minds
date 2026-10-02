@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { BILLING_PERIOD_DAYS, billingPriceCents, createCheckoutLink } from "@/lib/infinitepay";
+import { createCheckoutLink, findPlan } from "@/lib/infinitepay";
 
 // Abre um link de pagamento da InfinitePay para o próximo período. Não usa
 // requireActiveUser de propósito: quem está com o acesso vencido precisa
 // justamente conseguir pagar. Só a conta desabilitada pelo admin é barrada.
-export async function POST() {
+export async function POST(req: Request) {
   const supabase = supabaseServer();
   const {
     data: { user },
@@ -21,11 +21,15 @@ export async function POST() {
     return NextResponse.json({ error: "Seu acesso já está incluso como aluno Unblocking." }, { status: 400 });
   }
 
+  const body = await req.json().catch(() => ({}));
+  const plan = findPlan(body?.plan ?? "monthly");
+  if (!plan) return NextResponse.json({ error: "Plano inválido." }, { status: 400 });
+
   const admin = supabaseAdmin();
-  const priceCents = billingPriceCents();
+  const priceCents = plan.priceCents;
   const { data: payment, error } = await admin
     .from("payments")
-    .insert({ user_id: user.id, amount_cents: priceCents, period_days: BILLING_PERIOD_DAYS })
+    .insert({ user_id: user.id, amount_cents: priceCents, period_days: plan.days })
     .select("id")
     .single();
   if (error || !payment) {
@@ -37,6 +41,7 @@ export async function POST() {
     const url = await createCheckoutLink({
       paymentId: payment.id,
       priceCents,
+      description: `+Unblocking · Plano ${plan.label.toLowerCase()} (${plan.days} dias)`,
       customer: { name: profile?.name, email: user.email },
     });
     await admin.from("payments").update({ checkout_url: url }).eq("id", payment.id);

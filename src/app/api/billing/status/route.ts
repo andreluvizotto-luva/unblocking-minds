@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { accessStatus, ACCESS_SELECT, daysLeft } from "@/lib/access";
-import { BILLING_PERIOD_DAYS, billingPriceCents } from "@/lib/infinitepay";
+import { BILLING_PERIOD_DAYS, billingPlans, billingPriceCents } from "@/lib/infinitepay";
 
 // Situação da assinatura do aluno logado, para a tela Minha assinatura e
 // para os avisos da home.
@@ -32,6 +32,7 @@ export async function GET() {
     daysLeft: daysLeft(profile.access_until),
     priceCents: billingPriceCents(),
     periodDays: BILLING_PERIOD_DAYS,
+    plans: billingPlans(),
     payments: payments || [],
   });
 }

@@ -8,6 +8,29 @@ import { sendEmail, paymentConfirmedEmail } from "./email";
 const API = "https://api.checkout.infinitepay.io";
 export const BILLING_PERIOD_DAYS = 30;
 
+export type PlanId = "monthly" | "quarterly" | "semiannual";
+export type Plan = { id: PlanId; label: string; days: number; months: number; priceCents: number; perMonthCents: number; discountPct: number };
+
+// Mensal vem do env (preço de teste); trimestral e semestral têm preço fixo
+// por mês (R$ 67 e R$ 59), com desconto calculado sobre o mensal.
+export function billingPlans(): Plan[] {
+  const monthly = billingPriceCents();
+  const mk = (id: PlanId, label: string, months: number, perMonth: number): Plan => ({
+    id,
+    label,
+    months,
+    days: months * BILLING_PERIOD_DAYS,
+    priceCents: perMonth * months,
+    perMonthCents: perMonth,
+    discountPct: Math.max(0, Math.round((1 - perMonth / monthly) * 100)),
+  });
+  return [mk("monthly", "Mensal", 1, monthly), mk("quarterly", "Trimestral", 3, 6700), mk("semiannual", "Semestral", 6, 5900)];
+}
+
+export function findPlan(id: unknown): Plan | undefined {
+  return billingPlans().find((p) => p.id === id);
+}
+
 export function billingPriceCents() {
   const v = parseInt(process.env.BILLING_MONTHLY_PRICE_CENTS || "7700", 10);
   return Number.isFinite(v) && v > 0 ? v : 7700;
@@ -42,6 +65,7 @@ export function validWebhookToken(paymentId: string, token: string | null) {
 export async function createCheckoutLink(opts: {
   paymentId: string;
   priceCents: number;
+  description: string;
   customer: { name?: string | null; email?: string | null };
 }): Promise<string> {
   const customer: Record<string, string> = {};
@@ -54,7 +78,7 @@ export async function createCheckoutLink(opts: {
     body: JSON.stringify({
       handle: handle(),
       order_nsu: opts.paymentId,
-      items: [{ quantity: 1, price: opts.priceCents, description: `+Unblocking · Plano mensal (${BILLING_PERIOD_DAYS} dias)` }],
+      items: [{ quantity: 1, price: opts.priceCents, description: opts.description }],
       redirect_url: `${siteUrl()}/assinatura/retorno`,
       webhook_url: `${siteUrl()}/api/billing/webhook?t=${webhookToken(opts.paymentId)}`,
       ...(Object.keys(customer).length ? { customer } : {}),
