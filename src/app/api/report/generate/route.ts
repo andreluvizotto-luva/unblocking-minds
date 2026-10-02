@@ -7,6 +7,9 @@ import { updateSkillDifficulty } from "@/lib/skill-difficulty";
 import { requireActiveUser } from "@/lib/require-active-user";
 import { mensagemParaOAluno } from "@/lib/erro-do-aluno";
 
+const CEFR = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const LEVEL_UP_EVERY = 5;
+
 export async function POST(req: Request) {
   const { sessionId } = await req.json();
   if (!sessionId) {
@@ -148,9 +151,28 @@ Responda apenas o JSON.`;
     bySkill: report.bySkill || {},
   });
 
-  // A cada 10 aulas seguidas avaliadas como "forte" numa habilidade, essa
-  // habilidade fica 10% mais desafiadora nas próximas aulas.
-  const skillDifficulty = await updateSkillDifficulty(admin, userId, report.bySkill || {});
+  // 7 "forte" nas últimas 10 avaliações de uma habilidade deixam essa
+  // habilidade 10% mais desafiadora nas próximas aulas.
+  const progress = await updateSkillDifficulty(admin, userId, report.bySkill || {});
 
-  return NextResponse.json({ ...report, streak: { currentStreak, longestStreak }, unlockedAchievements, skillDifficulty });
+  // Assinante do app: a cada 5 aumentos de desafio, sugere subir um nível
+  // CEFR. A sugestão fica gravada no perfil até o aluno aceitar ou recusar.
+  let levelSuggestion: string | null = null;
+  if (Math.floor(progress.totalIncreasesAfter / LEVEL_UP_EVERY) > Math.floor(progress.totalIncreasesBefore / LEVEL_UP_EVERY)) {
+    const { data: prof } = await admin.from("profiles").select("category, default_level").eq("id", userId).single();
+    const i = CEFR.indexOf(prof?.default_level || "");
+    if (prof?.category === "app" && i >= 0 && i < CEFR.length - 1) {
+      levelSuggestion = CEFR[i + 1];
+      await admin.from("profiles").update({ suggested_level: levelSuggestion }).eq("id", userId);
+    }
+  }
+
+  return NextResponse.json({
+    ...report,
+    streak: { currentStreak, longestStreak },
+    unlockedAchievements,
+    skillDifficulty: progress.difficulty,
+    challengeUp: progress.increased,
+    levelSuggestion,
+  });
 }

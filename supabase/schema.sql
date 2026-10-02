@@ -475,3 +475,45 @@ create table if not exists public.billing_emails (
 );
 alter table public.billing_emails enable row level security;
 revoke all privileges on table public.billing_emails from anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- Progressão 7 de 10 e sugestão de nível ao assinante. Mesmo conteúdo de
+-- Claude outputs/progressao-7-de-10.sql.
+-- ---------------------------------------------------------------------
+
+-- Histórico das últimas avaliações por habilidade, da mais antiga para a
+-- mais recente: "F" = forte, "x" = qualquer outra. No máximo 10 caracteres.
+alter table public.skill_progress add column if not exists recent_results text not null default '';
+
+-- Quem já vinha numa sequência de "forte" começa com essa sequência no
+-- histórico (até 10), para não perder o progresso acumulado.
+update public.skill_progress
+   set recent_results = repeat('F', least(consecutive_strong, 10))
+ where recent_results = '' and consecutive_strong > 0;
+
+-- Nível CEFR sugerido ao assinante depois de 5 aumentos de desafio. Gravado
+-- só pelo servidor; o aluno aceita ou recusa pelo relatório.
+alter table public.profiles add column if not exists suggested_level text;
+alter table public.profiles drop constraint if exists profiles_suggested_level_check;
+alter table public.profiles add constraint profiles_suggested_level_check
+  check (suggested_level is null or suggested_level in ('A1','A2','B1','B2','C1','C2'));
+
+create or replace function public.protect_admin_only_profile_fields()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  if auth.role() <> 'service_role' then
+    new.is_admin := old.is_admin;
+    new.is_active := old.is_active;
+    new.approved_at := old.approved_at;
+    new.default_level := old.default_level;
+    new.password_expires_at := old.password_expires_at;
+    new.category := old.category;
+    new.access_until := old.access_until;
+    new.suggested_level := old.suggested_level;
+  end if;
+  return new;
+end;
+$$;

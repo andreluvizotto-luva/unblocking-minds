@@ -455,7 +455,8 @@ export default function AdminStudentPage() {
               <Card style={{ marginBottom: 16 }}>
                 <SectionLabel>Dificuldade adaptativa por habilidade</SectionLabel>
                 <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 10 }}>
-                  Aumenta 10% a cada 10 aulas seguidas avaliadas como "forte" naquela habilidade.
+                  Aumenta 10% quando 7 das últimas 10 avaliações da habilidade forem "forte" (aulas completas e formatos
+                  parciais). Para assinantes, a cada 5 aumentos o app sugere subir de nível.
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                   {detail.skillProgress
