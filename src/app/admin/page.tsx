@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import { Card, Button, SectionLabel, Spark, Switch } from "@/components/ui";
+import { Card, Button, SectionLabel, Spark } from "@/components/ui";
+import { AdminStudents } from "@/components/AdminStudents";
 
 type Overview = {
   totalStudents: number;
@@ -62,8 +63,6 @@ type Student = {
   lastOverallScore: number | null;
 };
 
-const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
-const CATEGORY_BG: Record<string, string> = { demo: "#fff2d6", unblocking: "#e4ecdf", app: "#e3e8f7" };
 
 const SKILL_LABELS: Record<string, string> = {
   reading: "Leitura",
@@ -87,11 +86,6 @@ const TOPIC_LABELS: Record<string, string> = {
   astrology: "Astrologia",
 };
 
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-
 function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ flex: "1 1 120px", minWidth: 120 }}>
@@ -112,7 +106,6 @@ export default function AdminPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -168,6 +161,7 @@ export default function AdminPage() {
                 ...("isActive" in body ? { isActive: body.isActive } : {}),
                 ...("passwordExpiresAt" in body ? { passwordExpiresAt: body.passwordExpiresAt } : {}),
                 ...("isAdmin" in body ? { isAdmin: body.isAdmin } : {}),
+                ...("defaultLevel" in body ? { defaultLevel: body.defaultLevel } : {}),
                 ...("category" in body ? { category: body.category } : {}),
                 ...(data.accessUntil !== undefined ? { accessUntil: data.accessUntil } : {}),
               }
@@ -187,12 +181,6 @@ export default function AdminPage() {
   }
 
   if (checkingAuth || !allowed) return null;
-
-  const filtered = students.filter((s) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (s.name || "").toLowerCase().includes(q) || (s.email || "").toLowerCase().includes(q);
-  });
 
   return (
     <div
@@ -377,143 +365,12 @@ export default function AdminPage() {
               </Card>
             )}
 
-            <Card>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12 }}>
-                <SectionLabel>Alunos ({filtered.length})</SectionLabel>
-                <input
-                  placeholder="Buscar por nome ou e-mail…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{
-                    padding: "7px 10px",
-                    borderRadius: 3,
-                    border: "1px solid var(--line)",
-                    fontSize: 13,
-                    minWidth: 220,
-                  }}
-                />
-              </div>
-
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
-                      <th style={{ padding: "6px 8px" }}>Aluno</th>
-                      <th style={{ padding: "6px 8px" }}>Nível (CEFR)</th>
-                      <th style={{ padding: "6px 8px" }}>Aulas</th>
-                      <th style={{ padding: "6px 8px" }}>Última</th>
-                      <th style={{ padding: "6px 8px" }}>Ativo</th>
-                      <th style={{ padding: "6px 8px" }}>Admin</th>
-                      <th style={{ padding: "6px 8px" }}>Senha expira em</th>
-                      <th style={{ padding: "6px 8px" }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((s) => (
-                      <tr key={s.id} style={{ borderBottom: "1px solid var(--line)" }}>
-                        <td style={{ padding: "8px" }}>
-                          <div style={{ fontWeight: 600 }}>{s.name || "(sem nome)"}</div>
-                          <div style={{ color: "var(--muted)", fontSize: 11.5 }}>{s.email}</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
-                            <select
-                              value={s.category}
-                              disabled={savingId === s.id}
-                              onChange={(e) => patchStudent(s.id, { category: e.target.value })}
-                              style={{
-                                padding: "2px 6px",
-                                borderRadius: 20,
-                                border: "1px solid var(--line)",
-                                fontSize: 10.5,
-                                fontWeight: 700,
-                                background: CATEGORY_BG[s.category] || "#fff",
-                              }}
-                            >
-                              <option value="demo">Demo</option>
-                              <option value="unblocking">Unblocking</option>
-                              <option value="app">App</option>
-                            </select>
-                            {s.category !== "unblocking" && !s.isAdmin && (
-                              <span style={{ fontSize: 10.5, color: s.accessUntil && new Date(s.accessUntil).getTime() > Date.now() ? "var(--muted)" : "var(--coral)" }}>
-                                {s.accessUntil
-                                  ? `${new Date(s.accessUntil).getTime() > Date.now() ? "até" : "venceu"} ${new Date(s.accessUntil).toLocaleDateString("pt-BR")}`
-                                  : "sem prazo"}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td style={{ padding: "8px" }}>
-                          <select
-                            value={s.defaultLevel || ""}
-                            disabled={savingId === s.id}
-                            onChange={(e) => patchStudent(s.id, { defaultLevel: e.target.value || null })}
-                            style={{
-                              padding: "6px 8px",
-                              borderRadius: 3,
-                              border: "1px solid var(--line)",
-                              fontSize: 12.5,
-                              background: s.defaultLevel ? "#fff" : "#fff2d6",
-                            }}
-                          >
-                            <option value="">— definir —</option>
-                            {CEFR_LEVELS.map((lv) => (
-                              <option key={lv} value={lv}>{lv}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td style={{ padding: "8px" }}>
-                          {s.completedSessions}/{s.totalSessions}
-                        </td>
-                        <td style={{ padding: "8px" }}>{formatDate(s.lastSessionAt)}</td>
-                        <td style={{ padding: "8px" }}>
-                          <Switch
-                            checked={s.isActive}
-                            disabled={savingId === s.id}
-                            onChange={(next) => patchStudent(s.id, { isActive: next })}
-                          />
-                        </td>
-                        <td style={{ padding: "8px" }}>
-                          <Switch
-                            checked={s.isAdmin}
-                            disabled={savingId === s.id || s.id === currentUserId}
-                            labelOn="Admin"
-                            labelOff="Aluno"
-                            onChange={(next) => {
-                              if (!next && s.id === currentUserId) return;
-                              const confirmMsg = next
-                                ? `Tornar "${s.name || s.email}" administrador? Essa pessoa passará a ter acesso a este painel.`
-                                : `Remover o acesso de admin de "${s.name || s.email}"?`;
-                              if (window.confirm(confirmMsg)) patchStudent(s.id, { isAdmin: next });
-                            }}
-                          />
-                        </td>
-                        <td style={{ padding: "8px" }}>
-                          <input
-                            type="date"
-                            value={s.passwordExpiresAt ? s.passwordExpiresAt.slice(0, 10) : ""}
-                            disabled={savingId === s.id}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              patchStudent(s.id, { passwordExpiresAt: v ? new Date(v + "T23:59:59").toISOString() : null });
-                            }}
-                            style={{
-                              padding: "5px 8px",
-                              borderRadius: 3,
-                              border: "1px solid var(--line)",
-                              fontSize: 12.5,
-                            }}
-                          />
-                        </td>
-                        <td style={{ padding: "8px" }}>
-                          <Button variant="subtle" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={() => router.push(`/admin/${s.id}`)}>
-                            Ver
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+            <AdminStudents
+              students={students}
+              savingId={savingId}
+              patchStudent={patchStudent}
+              onOpen={(id) => router.push(`/admin/${id}`)}
+            />
           </>
         )}
       </div>

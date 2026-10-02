@@ -83,6 +83,30 @@ export function reminderEmail(kind: ReminderKind, name: string | null | undefine
   }
 }
 
+// Lembrete enviado à mão pelo admin, em qualquer momento do ciclo.
+export function manualReminderEmail(
+  name: string | null | undefined,
+  category: string,
+  accessUntil: string | null,
+  priceLabel: string
+) {
+  const vencido = !accessUntil || new Date(accessUntil).getTime() <= Date.now();
+  const cta = { label: category === "app" ? "Renovar assinatura" : "Assinar agora", href: `${site()}/assinatura` };
+  const quando = accessUntil ? fmtDate(accessUntil) : "";
+  const body =
+    category === "demo"
+      ? vencido
+        ? `Seu teste grátis terminou${quando ? ` em ${quando}` : ""}. Assine o plano mensal por ${priceLabel}, com Pix ou cartão, e continue de onde parou.`
+        : `Seu teste grátis vai até ${quando}. Aproveite para praticar e, quando quiser continuar, assine o plano mensal por ${priceLabel}.`
+      : vencido
+        ? `Seu acesso terminou${quando ? ` em ${quando}` : ""}. Renove por ${priceLabel}, com Pix ou cartão, e volte a praticar na hora.`
+        : `Sua assinatura vai até ${quando}. Renove por ${priceLabel} quando quiser: os 30 dias novos são somados ao que ainda falta.`;
+  return {
+    subject: category === "demo" ? "Continue praticando no +Unblocking" : "Sua assinatura do +Unblocking",
+    html: layout(name, category === "demo" ? "Continue praticando" : "Sua assinatura", body, cta),
+  };
+}
+
 export function paymentConfirmedEmail(name: string | null | undefined, accessUntil: string, receiptUrl?: string | null) {
   const receipt = receiptUrl && /^https:\/\//.test(receiptUrl) ? ` <a href="${esc(receiptUrl)}" style="color:#10143a">Ver comprovante</a>.` : "";
   return {
