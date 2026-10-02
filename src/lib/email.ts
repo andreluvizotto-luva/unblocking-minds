@@ -36,14 +36,15 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" });
 
-function layout(name: string | null | undefined, title: string, body: string, cta: { label: string; href: string } | null) {
+function layout(name: string | null | undefined, title: string, body: string, cta: { label: string; href: string } | null, extra = "", raw = false) {
   const first = name ? esc(name.split(" ")[0]) : "";
   return `<!doctype html><html><body style="margin:0;background:#f4efe3;font-family:Arial,Helvetica,sans-serif;color:#10143a">
 <div style="max-width:520px;margin:0 auto;padding:28px 18px">
   <div style="font-size:20px;font-weight:700;margin-bottom:18px">+Unblocking</div>
   <div style="background:#ffffff;border-radius:16px;padding:24px">
     <h1 style="font-size:20px;margin:0 0 12px">${esc(title)}</h1>
-    <p style="font-size:15px;line-height:1.55;margin:0 0 16px">${first ? `Oi, ${first}! ` : ""}${body}</p>
+    ${raw ? body : `<p style="font-size:15px;line-height:1.55;margin:0 0 16px">${first ? `Oi, ${first}! ` : ""}${body}</p>`}
+    ${extra}
     ${
       cta
         ? `<a href="${cta.href}" style="display:inline-block;background:#f6a017;color:#10143a;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:12px">${esc(cta.label)}</a>`
@@ -56,25 +57,92 @@ function layout(name: string | null | undefined, title: string, body: string, ct
 
 export type ReminderKind = "trial_ending" | "renewal_soon" | "renewal_tomorrow" | "expired";
 
-export function reminderEmail(kind: ReminderKind, name: string | null | undefined, accessUntil: string, priceLabel: string) {
-  const cta = { label: kind === "trial_ending" ? "Assinar agora" : "Renovar assinatura", href: `${site()}/assinatura` };
+export type AchievementsStats = {
+  lessons: number;
+  daysPracticed: number;
+  streak: number;
+  unlocked: { icon: string | null; title: string }[];
+};
+
+const P = "font-size:15px;line-height:1.55;margin:0 0 16px";
+
+function tile(value: number, label: string) {
+  return `<td style="background:#f4efe3;border-radius:12px;padding:12px 6px;text-align:center;width:33%"><div style="font-size:24px;font-weight:700;line-height:1.1">${value}</div><div style="font-size:12px;color:#5d5a50;margin-top:2px">${label}</div></td>`;
+}
+
+// Convite para continuar: primeiro os resultados (ou a importância do
+// primeiro passo), depois o argumento e, por último, a cobrança como forma
+// de seguir evoluindo.
+function inviteEmail(kind: Exclude<ReminderKind, "expired">, name: string | null | undefined, accessUntil: string, priceLabel: string, stats?: AchievementsStats | null) {
+  const first = name ? esc(name.split(" ")[0]) : "";
+  const hi = first ? `Oi, ${first}! ` : "";
+  const date = fmtDate(accessUntil);
+  const trial = kind === "trial_ending";
+  const practiced = (stats?.lessons ?? 0) > 0;
+  const href = `${site()}/assinatura`;
+
+  const title = !practiced
+    ? "O primeiro passo está esperando por você"
+    : kind === "trial_ending"
+      ? "Você começou bem. Vamos continuar?"
+      : kind === "renewal_soon"
+        ? "Seu inglês está ganhando ritmo. Vamos continuar?"
+        : "Não pare agora: seu inglês está evoluindo";
+
+  let top: string;
+  if (practiced && stats) {
+    const tiles = [tile(stats.lessons, stats.lessons === 1 ? "aula" : "aulas"), tile(stats.daysPracticed, stats.daysPracticed === 1 ? "dia de prática" : "dias de prática")];
+    if (stats.streak >= 2) tiles.push(tile(stats.streak, "dias seguidos"));
+    const chips = stats.unlocked
+      .map(
+        (a) =>
+          `<span style="display:inline-block;background:#fdf0d6;border:1px solid #f1c775;border-radius:999px;padding:6px 12px;font-size:13.5px;font-weight:700;margin:0 6px 8px 0">${esc(`${a.icon ? `${a.icon} ` : ""}${a.title}`)}</span>`
+      )
+      .join("");
+    top = `<p style="${P}">${hi}Olha o que você construiu ${trial ? "no teste" : "nos últimos 30 dias"}:</p>
+    <table role="presentation" width="100%" cellspacing="8" style="margin:0 -8px 8px;width:calc(100% + 16px);border-collapse:separate"><tr>${tiles.join("")}</tr></table>
+    ${chips ? `<div style="margin:0 0 8px">${chips}</div>` : ""}
+    <p style="${P}">Esse resultado não aconteceu por acaso: veio de constância. Idioma se aprende por repetição, e é quando a prática para que o que você construiu começa a esfriar. Continuar é o que transforma esse começo em fluência de verdade, e os desafios seguem subindo no ritmo do seu desempenho.</p>`;
+  } else {
+    top = `<p style="${P}">${hi}O primeiro passo é o mais importante, e ele ainda está ao seu alcance. Poucos minutos por dia, de forma constante, fazem mais pelo seu inglês do que longas maratonas de vez em quando. Cada aula já vem no seu nível e acompanha o seu ritmo, então começar (ou recomeçar) é simples.</p>`;
+  }
+
+  const pay = trial
+    ? `${practiced ? "Para seguir nesse caminho" : "Para dar esse passo com acesso completo"}, assine o plano mensal por <b>${priceLabel}</b> (30 dias, com Pix ou cartão). Seu teste grátis vai até ${date}.`
+    : `${practiced ? "Para seguir nesse caminho" : "Para dar esse passo com acesso completo"}, renove seu acesso por <b>${priceLabel}</b> (30 dias, com Pix ou cartão). Seu acesso atual vai até ${date} e os dias novos são somados ao que ainda falta.`;
+
+  const subject =
+    kind === "trial_ending"
+      ? "Seu teste grátis do +Unblocking termina amanhã. Vamos continuar?"
+      : kind === "renewal_soon"
+        ? "Sua assinatura do +Unblocking vence em 3 dias. Vamos continuar?"
+        : "Sua assinatura do +Unblocking vence amanhã. Vamos continuar?";
+
+  const html = layout(
+    null,
+    title,
+    top,
+    { label: trial ? "Assinar e continuar" : "Continuar minha evolução", href },
+    `<p style="background:#f4efe3;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.55;margin:0 0 16px">${pay}</p>`,
+    true
+  );
+  return { subject, html };
+}
+
+export function reminderEmail(
+  kind: ReminderKind,
+  name: string | null | undefined,
+  accessUntil: string,
+  priceLabel: string,
+  stats?: AchievementsStats | null
+) {
+  const cta = { label: "Renovar assinatura", href: `${site()}/assinatura` };
   const date = fmtDate(accessUntil);
   switch (kind) {
     case "trial_ending":
-      return {
-        subject: "Seu teste grátis do +Unblocking termina amanhã",
-        html: layout(name, "Seu teste grátis termina amanhã", `Para continuar praticando depois de ${date}, assine o plano mensal por ${priceLabel}, com Pix ou cartão.`, cta),
-      };
     case "renewal_soon":
-      return {
-        subject: "Sua assinatura do +Unblocking vence em 3 dias",
-        html: layout(name, "Sua assinatura vence em 3 dias", `Seu acesso vai até ${date}. Renove por ${priceLabel} e os 30 dias novos são somados ao que ainda falta.`, cta),
-      };
     case "renewal_tomorrow":
-      return {
-        subject: "Sua assinatura do +Unblocking vence amanhã",
-        html: layout(name, "Sua assinatura vence amanhã", `Seu acesso vai até ${date}. Renove por ${priceLabel} para não perder a sequência de prática.`, cta),
-      };
+      return inviteEmail(kind, name, accessUntil, priceLabel, stats);
     case "expired":
       return {
         subject: "Seu acesso ao +Unblocking venceu",
