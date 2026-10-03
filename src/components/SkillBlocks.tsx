@@ -810,21 +810,53 @@ export function SpeakingBlock({
   const [recordError, setRecordError] = useState("");
   const [showTextFallback, setShowTextFallback] = useState(false);
 
-  // Desafios de completar a frase em voz alta, antes da pergunta aberta.
-  const gapFill: any[] = data.gapFill || [];
+  // Desafios de pron\u00fancia: o aluno ouve e repete uma frase, antes da pergunta aberta.
+  const gapFill: any[] = Array.isArray(data.repeat) ? data.repeat : [];
   const [gapIdx, setGapIdx] = useState(0);
   const [gapDone, setGapDone] = useState(gapFill.length === 0);
   const [gapTranscript, setGapTranscript] = useState("");
   const [gapResult, setGapResult] = useState<"correct" | "wrong" | null>(null);
   const [gapTyped, setGapTyped] = useState("");
+  const [gapHits, setGapHits] = useState<boolean[]>([]);
+  const [gapScore, setGapScore] = useState(0);
 
-  function normalizeAnswer(txt: string) {
+  function splitWords(txt: string) {
     return txt
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9\s]/g, "")
-      .trim();
+      .replace(/[^a-z0-9\s']/g, "")
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
+  // Maior subsequ\u00eancia comum entre a frase-alvo e o que foi dito; passa com 80% das palavras.
+  function compareSpoken(target: string, spoken: string) {
+    const t = splitWords(target);
+    const w = splitWords(spoken);
+    const dp: number[][] = Array.from({ length: t.length + 1 }, () => new Array(w.length + 1).fill(0));
+    for (let i = 1; i <= t.length; i++)
+      for (let j = 1; j <= w.length; j++)
+        dp[i][j] = t[i - 1] === w[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    const hits: boolean[] = new Array(t.length).fill(false);
+    for (let i = t.length, j = w.length; i > 0 && j > 0; ) {
+      if (t[i - 1] === w[j - 1]) {
+        hits[i - 1] = true;
+        i--;
+        j--;
+      } else if (dp[i - 1][j] >= dp[i][j - 1]) i--;
+      else j--;
+    }
+    return { hits, score: t.length ? dp[t.length][w.length] / t.length : 0 };
+  }
+
+  function listenSentence(text: string) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US";
+    u.rate = 0.85;
+    window.speechSynthesis.speak(u);
   }
 
   async function handleGapStart() {
@@ -856,12 +888,16 @@ export function SpeakingBlock({
   async function resolveGapAnswer(spokenText: string) {
     const item = gapFill[gapIdx];
     setGapTranscript(spokenText);
-    const isRight = normalizeAnswer(spokenText).includes(normalizeAnswer(item.answer));
+    const { hits, score } = compareSpoken(item.sentence, spokenText);
+    setGapHits(hits);
+    setGapScore(score);
+    const isRight = score >= 0.8;
     setGapResult(isRight ? "correct" : "wrong");
     if (!isRight) {
-      const note = `Disse "${spokenText}" em vez de completar com "${item.answer}" em: "${item.before} ___ ${item.after}"`;
-      onDifficulty({ skill: "Fala", area: "preenchimento de lacunas", note });
-      await logDifficultyDirect(sessionId, "Fala", "preenchimento de lacunas", note);
+      const missed = splitWords(item.sentence).filter((_, i) => !hits[i]);
+      const note = `Ao repetir "${item.sentence}", ficou de fora ou soou diferente: ${missed.join(", ") || "frase incompleta"}`;
+      onDifficulty({ skill: "Fala", area: "pronúncia (repetir frase)", note });
+      await logDifficultyDirect(sessionId, "Fala", "pronúncia (repetir frase)", note);
     }
   }
 
@@ -871,6 +907,7 @@ export function SpeakingBlock({
       setGapTranscript("");
       setGapTyped("");
       setGapResult(null);
+      setGapHits([]);
     } else {
       setGapDone(true);
     }
@@ -936,21 +973,70 @@ export function SpeakingBlock({
 
   if (!gapDone) {
     const item = gapFill[gapIdx];
+    const targetWords: string[] = String(item.sentence).split(/\s+/).filter(Boolean);
+    const verdict = gapResult && (
+      <div
+        style={{
+          fontSize: 13.5,
+          fontWeight: 600,
+          marginTop: 10,
+          color: gapResult === "correct" ? "var(--teal)" : "var(--wine)",
+        }}
+      >
+        {gapResult === "correct"
+          ? `✓ Muito bem! Você acertou ${Math.round(gapScore * 100)}% da frase.`
+          : `Quase lá: ${Math.round(gapScore * 100)}% da frase. As palavras sublinhadas ficaram de fora ou soaram diferentes.`}
+      </div>
+    );
     return (
       <div>
         <ReadingRecapToggle reading={readingRecap} />
         <Card style={{ marginBottom: 14 }}>
-          <SectionLabel>Complete a frase em voz alta ({gapIdx + 1}/{gapFill.length})</SectionLabel>
-          <div style={{ fontSize: 17, marginTop: 6 }}>
-            <GapSentence before={item.before} after={item.after} filled={gapResult ? item.answer : undefined} />
+          <SectionLabel>Repita a frase em voz alta ({gapIdx + 1}/{gapFill.length})</SectionLabel>
+          <div style={{ fontSize: 18, lineHeight: 1.5, marginTop: 8 }}>
+            {targetWords.map((w, i) => (
+              <span
+                key={i}
+                style={{
+                  marginRight: 5,
+                  color: gapResult && !gapHits[i] ? "var(--wine)" : "var(--ink)",
+                  textDecoration: gapResult && !gapHits[i] ? "underline" : "none",
+                }}
+              >
+                {w}
+              </span>
+            ))}
           </div>
+          {item.translation && <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>{item.translation}</div>}
+          <button
+            onClick={() => listenSentence(item.sentence)}
+            style={{
+              marginTop: 10,
+              background: "none",
+              border: "none",
+              padding: 0,
+              fontFamily: "inherit",
+              fontSize: 13.5,
+              fontWeight: 600,
+              color: "var(--ink)",
+              textDecoration: "underline",
+              cursor: "pointer",
+            }}
+          >
+            🔊 Ouvir a frase
+          </button>
         </Card>
 
         {supported ? (
           <Card style={{ marginBottom: 14, textAlign: "center" }}>
             {!recording && !transcribing && !gapResult && (
               <Button onClick={handleGapStart} style={{ padding: "11px 22px" }}>
-                🎙️ Falar a frase completa
+                🎙️ Gravar minha pronúncia
+              </Button>
+            )}
+            {gapResult === "wrong" && !recording && !transcribing && (
+              <Button onClick={handleGapStart} variant="ghost" style={{ padding: "9px 18px" }}>
+                Tentar de novo
               </Button>
             )}
             {recording && (
@@ -969,29 +1055,18 @@ export function SpeakingBlock({
               </div>
             )}
             {recordError && <div style={{ fontSize: 12.5, color: "var(--wine)", marginTop: 10 }}>{recordError}</div>}
-            {gapResult && (
-              <div
-                style={{
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  marginTop: 10,
-                  color: gapResult === "correct" ? "var(--teal)" : "var(--wine)",
-                }}
-              >
-                {gapResult === "correct" ? "✓ Isso mesmo!" : `A resposta certa era "${item.answer}".`}
-              </div>
-            )}
+            {verdict}
           </Card>
         ) : (
           <Card style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8, lineHeight: 1.5 }}>
-              Seu navegador não permite gravar áudio aqui. Fale a frase em voz alta para praticar e digite abaixo o
-              que você disse.
+              Seu navegador não permite gravar áudio aqui. Repita a frase em voz alta para praticar e digite abaixo
+              o que você disse.
             </div>
             <input
               value={gapTyped}
               onChange={(e) => setGapTyped(e.target.value)}
-              placeholder="Digite a palavra ou frase que você falou…"
+              placeholder="Digite a frase que você falou…"
               style={{
                 width: "100%",
                 padding: 10,
@@ -1010,18 +1085,7 @@ export function SpeakingBlock({
                 Conferir
               </Button>
             )}
-            {gapResult && (
-              <div
-                style={{
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  marginTop: 10,
-                  color: gapResult === "correct" ? "var(--teal)" : "var(--wine)",
-                }}
-              >
-                {gapResult === "correct" ? "✓ Isso mesmo!" : `A resposta certa era "${item.answer}".`}
-              </div>
-            )}
+            {verdict}
           </Card>
         )}
 

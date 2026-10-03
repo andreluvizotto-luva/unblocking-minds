@@ -192,13 +192,12 @@ Se o texto for uma situação válida, construa a aula inteira como uma simulaç
     schemaParts.push(`  "speaking": {
     "prompt": "consigna em inglês pedindo para o estudante falar por 30-60s sobre o tema, adequada ao nível ${level}.${difficultyNote("speaking", "Fala")}",
     "targetPoints": ["ponto 1", "ponto 2", "ponto 3"],
-    "gapFill": [
+    "repeat": [
       {
-        "before": "início de uma frase curta em inglês relacionada ao tema do dia, até onde entra a lacuna",
-        "after": "resto da frase, depois da lacuna (pode ser vazio)",
-        "answer": "palavra ou expressão curta que completa corretamente a lacuna"
+        "sentence": "frase natural em inglês, relacionada ao tema do dia, de 6 a 12 palavras, para o estudante ouvir e repetir em voz alta (calibrada para o nível ${level}, com sons e ritmo úteis para praticar pronúncia)",
+        "translation": "tradução curta da frase em português"
       }
-    ] (gere 2 a 3 itens curtos e simples de completar falando em voz alta, calibrados para o nível ${level})
+    ] (gere 3 itens, em dificuldade crescente)
   }`);
   }
   if (skills.includes("writing")) {
