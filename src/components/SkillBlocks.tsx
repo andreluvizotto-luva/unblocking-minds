@@ -850,13 +850,26 @@ export function SpeakingBlock({
     return { hits, score: t.length ? dp[t.length][w.length] / t.length : 0 };
   }
 
-  function listenSentence(text: string) {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-US";
-    u.rate = 0.85;
-    window.speechSynthesis.speak(u);
+  const [listening, setListening] = useState(false);
+  async function listenSentence(text: string, idx: number) {
+    if (listening) return;
+    setListening(true);
+    try {
+      const res = await fetch("/api/tts/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voiceSeed: sessionId, sessionId, variant: `rep${idx}` }),
+      });
+      if (!res.ok) throw new Error("tts failed");
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      await audio.play();
+    } catch {
+      setRecordError("Não foi possível tocar o áudio agora.");
+    } finally {
+      setListening(false);
+    }
   }
 
   async function handleGapStart() {
@@ -1009,7 +1022,8 @@ export function SpeakingBlock({
           </div>
           {item.translation && <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>{item.translation}</div>}
           <button
-            onClick={() => listenSentence(item.sentence)}
+            onClick={() => listenSentence(item.sentence, gapIdx)}
+            disabled={listening}
             style={{
               marginTop: 10,
               background: "none",
