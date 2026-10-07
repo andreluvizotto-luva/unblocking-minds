@@ -54,7 +54,9 @@ export default function RedefinirSenhaPage() {
         : await supabase.auth.exchangeCodeForSession(code!);
       if (error) {
         setErro(
-          "Não foi possível validar este link. Ele expira depois de um tempo e só funciona no mesmo navegador onde você pediu a redefinição. Peça um novo na tela de login."
+          tokenHash
+            ? "Este link expirou ou já foi usado. Peça um novo na tela de login e use o e-mail mais recente."
+            : "Não foi possível validar este link. Ele expira depois de um tempo e só funciona no mesmo navegador onde você pediu a redefinição. Peça um novo na tela de login."
         );
       } else {
         setLinkValido(true);
