@@ -12,10 +12,8 @@ import { PASSWORD_RULES, mensagemDePendencias } from "@/lib/password-rules";
 // cá com um "code" na URL. Trocamos esse código por uma sessão temporária e,
 // com ela, gravamos a nova senha. O código é de uso único e expira.
 //
-// Importante: o fluxo é PKCE, então a troca só funciona no MESMO navegador
-// que pediu a redefinição — o verificador fica guardado ali. Quem pede no
-// celular e abre o e-mail no computador cai no erro, e por isso a mensagem
-// de falha explica exatamente isso em vez de dizer só "link inválido".
+// O e-mail traz token_hash, que vale em qualquer navegador. Links antigos com
+// "code" (PKCE) só funcionam no navegador que pediu a redefinição.
 export default function RedefinirSenhaPage() {
   const router = useRouter();
   const supabase = supabaseBrowser();
@@ -41,14 +39,19 @@ export default function RedefinirSenhaPage() {
         return;
       }
 
+      // token_hash (template de e-mail apontando direto para cá) funciona em
+      // qualquer navegador; o "code" do PKCE só no navegador que pediu.
+      const tokenHash = params.get("token_hash");
       const code = params.get("code");
-      if (!code) {
+      if (!tokenHash && !code) {
         setErro("Link inválido. Abra o link direto do e-mail que você recebeu.");
         setVerificando(false);
         return;
       }
 
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      const { error } = tokenHash
+        ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" })
+        : await supabase.auth.exchangeCodeForSession(code!);
       if (error) {
         setErro(
           "Não foi possível validar este link. Ele expira depois de um tempo e só funciona no mesmo navegador onde você pediu a redefinição. Peça um novo na tela de login."
