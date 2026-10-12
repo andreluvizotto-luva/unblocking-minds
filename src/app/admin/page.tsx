@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { Card, Button, SectionLabel, Spark } from "@/components/ui";
-import { AdminStudents } from "@/components/AdminStudents";
+import { AdminStudents, type AdminStudent } from "@/components/AdminStudents";
 import { TuitionMonth } from "@/components/TuitionAdmin";
 
 type Overview = {
@@ -62,6 +62,7 @@ type Student = {
   lastSessionAt: string | null;
   lastLevel: string | null;
   lastOverallScore: number | null;
+  tuition: AdminStudent["tuition"];
 };
 
 
@@ -373,6 +374,10 @@ export default function AdminPage() {
               savingId={savingId}
               patchStudent={patchStudent}
               onOpen={(id) => router.push(`/admin/${id}`)}
+              onTuitionChange={async () => {
+                const r = await fetch("/api/admin/students");
+                if (r.ok) setStudents((await r.json()).students);
+              }}
             />
           </>
         )}

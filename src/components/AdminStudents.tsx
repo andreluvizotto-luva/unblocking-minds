@@ -18,7 +18,31 @@ export type AdminStudent = {
   totalSessions: number;
   completedSessions: number;
   lastSessionAt: string | null;
+  tuition: {
+    active: boolean;
+    kind: "private_class" | "student_leadership";
+    method: "link" | "auto";
+    status: "open" | "paid" | "exempt" | null;
+    late: boolean;
+    discountActive: boolean;
+    discountUntil: string | null;
+    dueDate: string | null;
+    paidAt: string | null;
+  } | null;
 };
+
+// Situação da mensalidade da escola no mês corrente.
+function mensalidade(t: AdminStudent["tuition"]): { label: string; tone: Tone } {
+  if (!t) return { label: "Sem mensalidade", tone: "gray" };
+  if (!t.active) return { label: "Cobrança pausada", tone: "gray" };
+  if (t.status === "paid") return { label: `Pago${t.paidAt ? ` ${fmtDate(t.paidAt)}` : ""}`, tone: "green" };
+  if (t.status === "exempt") return { label: "Isento", tone: "gray" };
+  if (t.status !== "open") return { label: "—", tone: "gray" };
+  if (t.late) return { label: "Em atraso", tone: "red" };
+  if (t.method === "auto") return { label: "Débito a confirmar", tone: "amber" };
+  if (t.discountActive) return { label: `Em aberto · 7% até ${t.discountUntil}`, tone: "amber" };
+  return { label: `Em aberto · vence ${t.dueDate}`, tone: "amber" };
+}
 
 type Billing = {
   assinantesEmDia: number;
@@ -75,6 +99,7 @@ const FILTERS: { id: string; label: string; test: (s: AdminStudent, sit: ReturnT
   { id: "unblocking", label: "Unblocking", test: (s) => s.category === "unblocking" && !s.isAdmin },
   { id: "soon", label: "Vence em até 3 dias", test: (_s, sit) => sit.key === "soon" },
   { id: "expired", label: "Vencidos", test: (_s, sit) => sit.key === "expired" },
+  { id: "tuition_open", label: "Mensalidade em aberto", test: (s) => !!s.tuition?.active && s.tuition.status === "open" },
   { id: "noclass", label: "Sem aula ainda", test: (s) => !s.isAdmin && s.totalSessions === 0 },
   { id: "disabled", label: "Desativados", test: (_s, sit) => sit.key === "disabled" },
 ];
@@ -120,11 +145,13 @@ export function AdminStudents({
   savingId,
   patchStudent,
   onOpen,
+  onTuitionChange,
 }: {
   students: AdminStudent[];
   savingId: string | null;
   patchStudent: (id: string, body: any) => Promise<void>;
   onOpen: (id: string) => void;
+  onTuitionChange: () => Promise<void>;
 }) {
   const narrow = useNarrow();
   const [billing, setBilling] = useState<Billing | null>(null);
@@ -133,6 +160,7 @@ export function AdminStudents({
   const [sort, setSort] = useState<"last" | "due" | "signup">("last");
   const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null);
   const [remindingId, setRemindingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const now = Date.now();
 
   async function loadBilling() {
@@ -259,6 +287,60 @@ export function AdminStudents({
     );
   }
 
+  async function toggleTuition(s: AdminStudent, active: boolean) {
+    setTogglingId(s.id);
+    setNotice(null);
+    try {
+      const r = await fetch(`/api/admin/students/${s.id}/tuition`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error);
+      await onTuitionChange();
+    } catch (e: any) {
+      setNotice({ text: e?.message || "Não foi possível alterar a cobrança.", ok: false });
+    }
+    setTogglingId(null);
+  }
+
+  function TuitionCell({ s }: { s: AdminStudent }) {
+    if (s.isAdmin && !s.tuition) return <span style={{ color: "var(--muted)" }}>—</span>;
+    const m = mensalidade(s.tuition);
+    const on = !!s.tuition?.active;
+    const busy = togglingId === s.id;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+        <Badge tone={m.tone}>{m.label}</Badge>
+        {s.tuition ? (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            disabled={busy}
+            onClick={() => toggleTuition(s, !on)}
+            title={on ? "Pausar a cobrança da mensalidade" : "Ativar a cobrança da mensalidade"}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: 0, padding: 0, cursor: busy ? "wait" : "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600, color: "var(--ink)" }}
+          >
+            <span style={{ width: 28, height: 16, borderRadius: 999, background: on ? "var(--sage)" : "#cfcabd", position: "relative", transition: "background .15s", flexShrink: 0 }}>
+              <span style={{ position: "absolute", top: 2, left: on ? 14 : 2, width: 12, height: 12, borderRadius: "50%", background: "#fff", transition: "left .15s" }} />
+            </span>
+            {busy ? "Salvando…" : on ? "Cobrança ativa" : "Cobrança pausada"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onOpen(s.id)}
+            style={{ background: "none", border: 0, padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600, color: "var(--ink)", textDecoration: "underline" }}
+          >
+            Configurar
+          </button>
+        )}
+      </div>
+    );
+  }
+
   const Parada = () => (
     <span title="Em teste há mais de 1 dia e ainda não fez nenhuma aula" style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: "#8d2438" }}>
       ⚠ sem aula
@@ -357,6 +439,9 @@ export function AdminStudents({
                     {s.completedSessions}/{s.totalSessions} aulas · última {fmtDate(s.lastSessionAt)}
                   </span>
                 </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, fontSize: 12, color: "var(--muted)" }}>
+                  Mensalidade: <TuitionCell s={s} />
+                </div>
                 <Actions s={s} />
               </div>
             ))}
@@ -368,6 +453,7 @@ export function AdminStudents({
                 <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
                   <th style={{ padding: "6px 8px" }}>Aluno</th>
                   <th style={{ padding: "6px 8px" }}>Situação</th>
+                  <th style={{ padding: "6px 8px" }}>Mensalidade</th>
                   <th style={{ padding: "6px 8px" }}>Nível</th>
                   <th style={{ padding: "6px 8px" }}>Aulas</th>
                   <th style={{ padding: "6px 8px" }}>Última</th>
@@ -389,6 +475,9 @@ export function AdminStudents({
                         <Badge tone={sit.tone}>{sit.label}</Badge>
                         <CategorySelect s={s} />
                       </div>
+                    </td>
+                    <td style={{ padding: "8px" }}>
+                      <TuitionCell s={s} />
                     </td>
                     <td style={{ padding: "8px" }}>
                       <LevelSelect s={s} />

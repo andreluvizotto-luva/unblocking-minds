@@ -110,9 +110,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!UUID.test(params.id)) return NextResponse.json({ error: "Aluno inválido" }, { status: 400 });
 
   const b = await req.json().catch(() => ({}));
-  if (typeof b.invoiceId !== "string" || !UUID.test(b.invoiceId)) return NextResponse.json({ error: "Cobrança inválida" }, { status: 400 });
-
   const admin = supabaseAdmin();
+
+  // Liga/desliga a cobrança direto da lista de alunos. Só vale para quem já
+  // tem a mensalidade configurada (sem dados preenchidos, não há cobrança).
+  if (typeof b.active === "boolean" && !b.invoiceId) {
+    const current = await loadPlan(admin, params.id);
+    if (!current) return NextResponse.json({ error: "Configure a mensalidade do aluno antes de ativar a cobrança." }, { status: 400 });
+    const { error } = await admin.from("tuition_plans").update({ active: b.active, updated_at: new Date().toISOString() }).eq("user_id", params.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(await payload(params.id));
+  }
+
+  if (typeof b.invoiceId !== "string" || !UUID.test(b.invoiceId)) return NextResponse.json({ error: "Cobrança inválida" }, { status: 400 });
   const plan = await loadPlan(admin, params.id);
   const { data: inv } = await admin.from("tuition_invoices").select(INVOICE_COLUMNS).eq("id", b.invoiceId).eq("user_id", params.id).maybeSingle();
   if (!plan || !inv) return NextResponse.json({ error: "Cobrança não encontrada" }, { status: 404 });

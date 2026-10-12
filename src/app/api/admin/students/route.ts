@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { INVOICE_COLUMNS, PLAN_COLUMNS, ensureInvoices, invoiceView, monthKey, spToday, type TuitionInvoice, type TuitionPlan } from "@/lib/tuition";
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -44,6 +45,36 @@ export async function GET() {
     }
   }
 
+  // Mensalidade da escola: situação do mês corrente de quem tem configuração.
+  const today = spToday();
+  const { data: plansData } = await admin.from("tuition_plans").select(PLAN_COLUMNS);
+  const plans = (plansData || []) as TuitionPlan[];
+  await Promise.all(plans.filter((p) => p.active).map((p) => ensureInvoices(admin, p, today)));
+  const { data: monthInv } = plans.length
+    ? await admin.from("tuition_invoices").select(INVOICE_COLUMNS).eq("month", monthKey(today.y, today.m))
+    : { data: [] as any[] };
+  const invByUser = new Map(((monthInv || []) as TuitionInvoice[]).map((i) => [i.user_id, i]));
+  const tuitionByUser = new Map(
+    plans.map((p) => {
+      const inv = invByUser.get(p.user_id);
+      const v = inv ? invoiceView(p, inv, today) : null;
+      return [
+        p.user_id,
+        {
+          active: p.active,
+          kind: p.kind,
+          method: p.method,
+          status: v?.status ?? null,
+          late: v?.late ?? false,
+          discountActive: v?.discountActive ?? false,
+          discountUntil: v?.discountUntil ?? null,
+          dueDate: v?.dueDate ?? null,
+          paidAt: v?.paidAt ?? null,
+        },
+      ];
+    })
+  );
+
   const students = usersPage.users.map((u) => {
     const profile = profileById.get(u.id);
     const stats = byUser[u.id];
@@ -64,6 +95,7 @@ export async function GET() {
       lastSessionAt: stats?.lastAt || null,
       lastLevel: stats?.lastLevel || null,
       lastOverallScore: stats?.lastOverall ?? null,
+      tuition: tuitionByUser.get(u.id) ?? null,
     };
   });
 
