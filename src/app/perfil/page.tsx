@@ -7,6 +7,7 @@ import { Card, Button, SectionLabel, SectionHeading, ProgressBar, Lockup, isSoun
 import { EvolutionChart } from "@/components/EvolutionChart";
 import { BottomNav } from "@/components/BottomNav";
 import { checkAccessOrRedirect } from "@/lib/access-check";
+import { StudentTuition } from "@/components/Tuition";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
 import { PASSWORD_RULES, mensagemDePendencias } from "@/lib/password-rules";
 import { SkillCards, skillValues, skillTrend, type LessonPoint } from "@/components/SkillProgress";
@@ -895,6 +896,8 @@ export default function PerfilPage() {
             <Chip active={soundOn} onClick={toggleSound}>{soundOn ? "Ligados" : "Desligados"}</Chip>
           </div>
         </Card>
+
+        <StudentTuition />
 
         {/* Conta */}
         <Card style={{ marginBottom: 14 }}>

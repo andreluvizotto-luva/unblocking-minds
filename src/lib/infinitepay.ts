@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "./supabase-admin";
 import { sendEmail, paymentConfirmedEmail } from "./email";
+import { sendTuitionPaidEmail } from "./tuition-email";
 
 // Integração com o Checkout da InfinitePay (infinitepay.io/checkout-documentacao).
 // A API só cria links de pagamento avulsos — não há recorrência via API —,
@@ -66,11 +67,13 @@ export async function createCheckoutLink(opts: {
   paymentId: string;
   priceCents: number;
   description: string;
-  customer: { name?: string | null; email?: string | null };
+  customer: { name?: string | null; email?: string | null; phone?: string | null };
+  redirectPath?: string;
 }): Promise<string> {
   const customer: Record<string, string> = {};
   if (opts.customer.name) customer.name = opts.customer.name;
   if (opts.customer.email) customer.email = opts.customer.email;
+  if (opts.customer.phone) customer.phone_number = opts.customer.phone;
 
   const res = await fetch(`${API}/links`, {
     method: "POST",
@@ -79,7 +82,7 @@ export async function createCheckoutLink(opts: {
       handle: handle(),
       order_nsu: opts.paymentId,
       items: [{ quantity: 1, price: opts.priceCents, description: opts.description }],
-      redirect_url: `${siteUrl()}/assinatura/retorno`,
+      redirect_url: `${siteUrl()}${opts.redirectPath || "/assinatura/retorno"}`,
       webhook_url: `${siteUrl()}/api/billing/webhook?t=${webhookToken(opts.paymentId)}`,
       ...(Object.keys(customer).length ? { customer } : {}),
     }),
@@ -110,10 +113,35 @@ export async function checkPayment(orderNsu: string, transactionNsu: string, slu
 }
 
 export type VerifyResult =
-  | { state: "paid"; accessUntil: string | null }
-  | { state: "already_paid"; accessUntil: string | null }
+  | { state: "paid"; accessUntil: string | null; invoiceId?: string }
+  | { state: "already_paid"; accessUntil: string | null; invoiceId?: string }
   | { state: "not_paid" }
   | { state: "not_found" };
+
+// Mensalidade da escola: marca o mês como pago, sem mexer no acesso ao app.
+async function applyTuition(
+  admin: ReturnType<typeof supabaseAdmin>,
+  payment: { id: string; invoice_id: string },
+  input: { transactionNsu: string; slug: string; receiptUrl?: string | null },
+  check: { capture_method?: string; paid_amount?: number; amount?: number }
+): Promise<VerifyResult> {
+  const { data: invoiceId, error } = await admin.rpc("apply_tuition_payment", {
+    p_id: payment.id,
+    p_slug: input.slug,
+    p_tx: input.transactionNsu,
+    p_method: check.capture_method ?? null,
+    p_paid_amount: check.paid_amount ?? check.amount ?? null,
+    p_receipt: input.receiptUrl ?? null,
+  });
+  if (error) throw new Error(`apply_tuition_payment: ${error.message}`);
+  if (!invoiceId) return { state: "already_paid", accessUntil: null, invoiceId: payment.invoice_id };
+  try {
+    await sendTuitionPaidEmail(payment.invoice_id, input.receiptUrl ?? null);
+  } catch (e: any) {
+    console.error("[tuition] pagamento confirmado, mas o e-mail falhou:", e?.message);
+  }
+  return { state: "paid", accessUntil: null, invoiceId: payment.invoice_id };
+}
 
 // Caminho único de confirmação, usado pelo webhook e pela página de retorno.
 // Só libera acesso depois que a própria InfinitePay confirma (payment_check)
@@ -125,14 +153,23 @@ export async function verifyAndApply(input: {
   slug: string;
   receiptUrl?: string | null;
   userId?: string;
+  tuitionOnly?: boolean;
 }): Promise<VerifyResult> {
   const admin = supabaseAdmin();
   const { data: payment } = await admin
     .from("payments")
-    .select("id, user_id, amount_cents, status")
+    .select("id, user_id, amount_cents, status, invoice_id")
     .eq("id", input.paymentId)
     .maybeSingle();
   if (!payment || (input.userId && payment.user_id !== input.userId)) return { state: "not_found" };
+  if (input.tuitionOnly && !payment.invoice_id) return { state: "not_found" };
+
+  if (payment.invoice_id) {
+    if (payment.status === "paid") return { state: "already_paid", accessUntil: null, invoiceId: payment.invoice_id };
+    const check = await checkPayment(payment.id, input.transactionNsu, input.slug);
+    if (!check.paid || (check.amount ?? 0) < payment.amount_cents) return { state: "not_paid" };
+    return applyTuition(admin, { id: payment.id, invoice_id: payment.invoice_id }, input, check);
+  }
 
   const accessUntil = async () =>
     (await admin.from("profiles").select("access_until").eq("id", payment.user_id).single()).data?.access_until ?? null;

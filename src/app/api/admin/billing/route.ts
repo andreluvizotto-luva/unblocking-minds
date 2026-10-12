@@ -22,6 +22,7 @@ export async function GET() {
   const { data: payments, error: payErr } = await admin
     .from("payments")
     .select("id, user_id, status, amount_cents, paid_amount, created_at, paid_at")
+    .is("invoice_id", null)
     .gte("created_at", new Date(now - 90 * DAY).toISOString());
   if (payErr) return NextResponse.json({ error: payErr.message }, { status: 500 });
 

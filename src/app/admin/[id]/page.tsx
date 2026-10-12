@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { Card, Button, SectionLabel, Spark, Switch } from "@/components/ui";
 import { EvolutionChart } from "@/components/EvolutionChart";
+import { TuitionAdmin } from "@/components/TuitionAdmin";
 
 type Difficulty = { session_id: string; skill: string; area: string; note: string; created_at: string };
 type Report = { session_id: string; summary: string; scores: Record<string, number>; recurring_difficulties: string[] | null; created_at: string };
@@ -358,9 +359,11 @@ export default function AdminStudentPage() {
               </div>
             </Card>
 
+            <TuitionAdmin userId={id} />
+
             {detail.payments.length > 0 && (
               <Card style={{ marginBottom: 16 }}>
-                <SectionLabel>Pagamentos</SectionLabel>
+                <SectionLabel>Pagamentos da assinatura +Unblocking</SectionLabel>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6, fontSize: 13 }}>
                   {detail.payments.map((p) => (
                     <div key={p.id} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>

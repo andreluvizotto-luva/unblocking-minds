@@ -21,6 +21,7 @@ export async function GET() {
     .select("id, amount_cents, paid_amount, capture_method, receipt_url, paid_at")
     .eq("user_id", user.id)
     .eq("status", "paid")
+    .is("invoice_id", null)
     .order("paid_at", { ascending: false })
     .limit(6);
 

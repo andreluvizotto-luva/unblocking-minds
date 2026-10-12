@@ -18,6 +18,7 @@ import { BillingBanner } from "@/components/BillingBanner";
 import { LevelPicker } from "@/components/LevelPicker";
 import { LevelCheck, ChallengeNotice } from "@/components/LevelCheck";
 import { checkAccessOrRedirect } from "@/lib/access-check";
+import { TuitionPopup } from "@/components/Tuition";
 import { ShareResultButton } from "@/components/ShareResultCard";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
 import { getQuoteOfDay } from "@/lib/quotes";
@@ -1049,6 +1050,7 @@ export default function HomePage() {
         )}
 
       </div>
+      {stage === "setup" && <TuitionPopup />}
       <BottomNav onSignOut={signOut} isAdmin={isAdmin} />
     </div>
   );

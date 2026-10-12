@@ -81,6 +81,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     .select("id, amount_cents, paid_amount, capture_method, receipt_url, paid_at")
     .eq("user_id", userId)
     .eq("status", "paid")
+    .is("invoice_id", null)
     .order("paid_at", { ascending: false });
 
   return NextResponse.json({

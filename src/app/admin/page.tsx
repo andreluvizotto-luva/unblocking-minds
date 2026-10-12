@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { Card, Button, SectionLabel, Spark } from "@/components/ui";
 import { AdminStudents } from "@/components/AdminStudents";
+import { TuitionMonth } from "@/components/TuitionAdmin";
 
 type Overview = {
   totalStudents: number;
@@ -215,6 +216,8 @@ export default function AdminPage() {
 
         {!loading && overview && (
           <>
+            <TuitionMonth />
+
             <Card style={{ marginBottom: 16 }}>
               <SectionLabel>Visão geral</SectionLabel>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>

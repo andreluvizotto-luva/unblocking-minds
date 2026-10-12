@@ -517,3 +517,115 @@ begin
   return new;
 end;
 $$;
+
+-- ---------------------------------------------------------------------
+-- Mensalidade da escola Unblocking Minds. Mesmo conteúdo de
+-- Claude outputs/mensalidade-unblocking-minds.sql.
+-- ---------------------------------------------------------------------
+
+create table if not exists public.tuition_plans (
+  user_id uuid primary key references public.profiles (id) on delete cascade,
+  active boolean not null default true,
+  kind text not null default 'private_class' check (kind in ('private_class','student_leadership')),
+  amount_cents integer not null check (amount_cents > 0),
+  due_day integer not null default 10 check (due_day in (10, 21)),
+  method text not null default 'link' check (method in ('link','auto')),
+  auto_link text,
+  guardian_name text,
+  guardian_email text,
+  guardian_phone text,
+  guardian_cpf text,
+  guardian_token text unique,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.tuition_plans enable row level security;
+revoke all privileges on table public.tuition_plans from anon, authenticated;
+
+create table if not exists public.tuition_invoices (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  month date not null,
+  amount_cents integer not null,
+  status text not null default 'open' check (status in ('open','paid','exempt')),
+  paid_at timestamptz,
+  paid_amount integer,
+  paid_how text check (paid_how in ('link','auto','manual')),
+  payment_id uuid,
+  receipt_url text,
+  created_at timestamptz not null default now(),
+  unique (user_id, month)
+);
+create index if not exists tuition_invoices_month_idx on public.tuition_invoices (month);
+alter table public.tuition_invoices enable row level security;
+revoke all privileges on table public.tuition_invoices from anon, authenticated;
+
+alter table public.payments add column if not exists invoice_id uuid references public.tuition_invoices (id) on delete set null;
+
+-- Assinatura do app: só pagamentos sem cobrança de mensalidade estendem acesso.
+create or replace function public.apply_payment(
+  p_id uuid, p_slug text, p_tx text, p_method text, p_paid_amount integer, p_receipt text
+) returns timestamptz
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid;
+  v_days integer;
+  v_until timestamptz;
+begin
+  update payments
+     set status = 'paid', paid_at = now(), invoice_slug = p_slug, transaction_nsu = p_tx,
+         capture_method = p_method, paid_amount = p_paid_amount, receipt_url = p_receipt
+   where id = p_id and status = 'pending' and invoice_id is null
+   returning user_id, period_days into v_user, v_days;
+
+  if v_user is null then
+    return null;
+  end if;
+
+  update profiles
+     set category = case when category = 'unblocking' then category else 'app' end,
+         access_until = greatest(coalesce(access_until, now()), now()) + v_days * interval '1 day'
+   where id = v_user
+   returning access_until into v_until;
+
+  return v_until;
+end;
+$$;
+revoke all on function public.apply_payment(uuid, text, text, text, integer, text) from public, anon, authenticated;
+grant execute on function public.apply_payment(uuid, text, text, text, integer, text) to service_role;
+
+-- Mensalidade: marca pagamento e mês como pagos numa transação. Idempotente:
+-- webhook repetido ou webhook + página de retorno juntos devolvem null.
+create or replace function public.apply_tuition_payment(
+  p_id uuid, p_slug text, p_tx text, p_method text, p_paid_amount integer, p_receipt text
+) returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_invoice uuid;
+begin
+  update payments
+     set status = 'paid', paid_at = now(), invoice_slug = p_slug, transaction_nsu = p_tx,
+         capture_method = p_method, paid_amount = p_paid_amount, receipt_url = p_receipt
+   where id = p_id and status = 'pending' and invoice_id is not null
+   returning invoice_id into v_invoice;
+
+  if v_invoice is null then
+    return null;
+  end if;
+
+  update tuition_invoices
+     set status = 'paid', paid_at = now(), paid_amount = p_paid_amount, paid_how = 'link',
+         payment_id = p_id, receipt_url = p_receipt
+   where id = v_invoice and status = 'open';
+
+  return v_invoice;
+end;
+$$;
+revoke all on function public.apply_tuition_payment(uuid, text, text, text, integer, text) from public, anon, authenticated;
+grant execute on function public.apply_tuition_payment(uuid, text, text, text, integer, text) to service_role;

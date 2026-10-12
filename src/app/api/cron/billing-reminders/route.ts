@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { billingPriceCents } from "@/lib/infinitepay";
 import { reminderEmail, sendEmail, type AchievementsStats, type ReminderKind } from "@/lib/email";
+import { INVOICE_COLUMNS, PLAN_COLUMNS, ensureInvoices, reminderKindFor, spToday, type TuitionInvoice, type TuitionPlan } from "@/lib/tuition";
+import { sendTuitionReminder } from "@/lib/tuition-email";
 
 const DAY = 86_400_000;
 
@@ -74,6 +76,29 @@ export async function GET(req: Request) {
       const ok = email ? await sendEmail({ to: email, ...reminderEmail(w.kind, p.name, p.access_until, price, stats) }) : false;
       if (ok) sent[w.kind] = (sent[w.kind] || 0) + 1;
       else await admin.from("billing_emails").delete().eq("id", mark.id); // tenta de novo amanhã
+    }
+  }
+
+  // Mensalidade da escola: cria as cobranças do período e manda o lembrete do
+  // dia para quem paga pelo link. Débito automático não recebe cobrança.
+  const today = spToday();
+  const { data: plans } = await admin.from("tuition_plans").select(PLAN_COLUMNS).eq("active", true);
+  for (const plan of (plans || []) as TuitionPlan[]) {
+    await ensureInvoices(admin, plan, today);
+    if (plan.method !== "link") continue;
+    const { data: open } = await admin.from("tuition_invoices").select(INVOICE_COLUMNS).eq("user_id", plan.user_id).eq("status", "open");
+    for (const inv of (open || []) as TuitionInvoice[]) {
+      const kind = reminderKindFor(plan, inv, today);
+      if (!kind) continue;
+      const { data: mark, error: dup } = await admin
+        .from("billing_emails")
+        .insert({ user_id: plan.user_id, kind, access_until: `${inv.month}T12:00:00Z` })
+        .select("id")
+        .single();
+      if (dup || !mark) continue;
+      const ok = await sendTuitionReminder(kind, plan, inv).catch(() => false);
+      if (ok) sent[kind] = (sent[kind] || 0) + 1;
+      else await admin.from("billing_emails").delete().eq("id", mark.id);
     }
   }
 
