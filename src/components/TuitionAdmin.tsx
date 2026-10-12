@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import { Card, Button, SectionLabel, Switch } from "@/components/ui";
 import { brl, type InvoiceView } from "@/components/Tuition";
 
@@ -23,7 +22,7 @@ const input: React.CSSProperties = { padding: "7px 10px", borderRadius: 3, borde
 const field: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: "var(--muted)", minWidth: 0 };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function statusPill(v: InvoiceView) {
+export function statusPill(v: InvoiceView) {
   const base: React.CSSProperties = { fontSize: 11.5, fontWeight: 700, padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" };
   if (v.status === "exempt") return <span style={{ ...base, background: "#eceaf3", color: "var(--muted)" }}>Isento</span>;
   if (v.status === "paid") {
@@ -313,95 +312,6 @@ export function TuitionAdmin({ userId }: { userId: string }) {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-type MonthRow = InvoiceView & { userId: string; name: string | null; kind: string; method: string; guardianName: string | null; phone: string | null };
-
-// Visão do mês no painel de admin.
-export function TuitionMonth() {
-  const [month, setMonth] = useState<string | null>(null);
-  const [data, setData] = useState<{ month: string; monthLabel: string; receivedCents: number; paidCount: number; billableCount: number; withDiscount: number; rows: MonthRow[] } | null>(null);
-
-  useEffect(() => {
-    fetch(`/api/admin/tuition${month ? `?month=${month}` : ""}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setData)
-      .catch(() => {});
-  }, [month]);
-
-  if (!data || (data.rows.length === 0 && !month)) return null;
-  const shift = (delta: number) => {
-    const y = Number(data.month.slice(0, 4));
-    const m = Number(data.month.slice(5, 7)) - 1 + delta;
-    const d = new Date(Date.UTC(y, m, 1));
-    setMonth(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
-  };
-  const tile = (value: string, label: string) => (
-    <div style={{ flex: "1 1 120px", background: "#fbf8f1", borderRadius: 12, padding: 10, textAlign: "center" }}>
-      <div style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: 18, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-      <div style={{ fontSize: 11.5, color: "var(--muted)" }}>{label}</div>
-    </div>
-  );
-
-  return (
-    <Card style={{ marginBottom: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-        <SectionLabel>Mensalidades Unblocking Minds · {cap(data.monthLabel)}</SectionLabel>
-        <div style={{ display: "flex", gap: 6 }}>
-          <Button variant="subtle" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => shift(-1)}>← Mês anterior</Button>
-          <Button variant="subtle" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => shift(1)}>Próximo →</Button>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        {tile(brl(data.receivedCents), "recebido")}
-        {tile(`${data.paidCount} de ${data.billableCount}`, "pagaram")}
-        {tile(String(data.withDiscount), "com desconto")}
-      </div>
-      {data.rows.length === 0 ? (
-        <div style={{ fontSize: 13, color: "var(--muted)" }}>Nenhuma cobrança neste mês.</div>
-      ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
-            <thead>
-              <tr style={{ textAlign: "left", color: "var(--muted)", fontSize: 11.5 }}>
-                <th style={{ padding: "0 6px 6px" }}>Aluno</th>
-                <th style={{ padding: "0 6px 6px" }}>Valor</th>
-                <th style={{ padding: "0 6px 6px" }}>Situação</th>
-                <th style={{ padding: "0 6px 6px" }}>Contato</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r) => {
-                const wa = r.phone ? `https://wa.me/55${r.phone.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "")}` : null;
-                return (
-                  <tr key={r.id} style={{ borderTop: "1px solid var(--line)" }}>
-                    <td style={{ padding: "8px 6px" }}>
-                      <Link href={`/admin/${r.userId}`} style={{ color: "var(--ink)", fontWeight: 600 }}>{r.name || "(sem nome)"}</Link>
-                      <div style={{ fontSize: 11.5, color: "var(--muted)" }}>
-                        {r.kind === "private_class" ? "Private Class" : "Student Leadership"}
-                        {r.method === "auto" ? " · débito automático" : ""}
-                      </div>
-                    </td>
-                    <td style={{ padding: "8px 6px" }}>{brl(r.status === "paid" ? r.paidAmount ?? r.fullCents : r.status === "open" ? r.priceNowCents : r.fullCents)}</td>
-                    <td style={{ padding: "8px 6px" }}>{statusPill(r)}</td>
-                    <td style={{ padding: "8px 6px", fontSize: 12 }}>
-                      {wa && r.status === "open" ? (
-                        <a href={wa} target="_blank" rel="noopener noreferrer" style={{ color: "var(--ink)" }}>
-                          WhatsApp{r.guardianName ? ` · ${r.guardianName.split(" ")[0]}` : ""}
-                        </a>
-                      ) : (
-                        r.guardianName || "—"
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
             </tbody>
           </table>
         </div>

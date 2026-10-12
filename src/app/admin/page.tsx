@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { Card, Button, SectionLabel, Spark } from "@/components/ui";
 import { AdminStudents, type AdminStudent } from "@/components/AdminStudents";
-import { TuitionMonth } from "@/components/TuitionAdmin";
+import { AdminTabs } from "@/components/AdminTabs";
 
 type Overview = {
   totalStudents: number;
@@ -206,6 +206,7 @@ export default function AdminPage() {
             <Button variant="ghost" onClick={signOut}>Sair</Button>
           </div>
         </div>
+        <AdminTabs active="/admin" />
 
         {error && (
           <Card style={{ marginBottom: 16, borderColor: "var(--wine)" }}>
@@ -217,8 +218,6 @@ export default function AdminPage() {
 
         {!loading && overview && (
           <>
-            <TuitionMonth />
-
             <Card style={{ marginBottom: 16 }}>
               <SectionLabel>Visão geral</SectionLabel>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
