@@ -66,6 +66,7 @@ export async function GET() {
           method: p.method,
           status: v?.status ?? null,
           late: v?.late ?? false,
+          graceToday: v?.graceToday ?? false,
           discountActive: v?.discountActive ?? false,
           discountUntil: v?.discountUntil ?? null,
           dueDate: v?.dueDate ?? null,

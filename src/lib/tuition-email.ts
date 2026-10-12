@@ -103,12 +103,17 @@ export function tuitionReminderEmail(kind: TuitionEmailKind, v: InvoiceView, ctx
     case "t_due":
       subject = `Mensalidade de ${mes} vence hoje${sufixo}`;
       title = "Vence hoje";
-      body = `<p style="${P}">${hi}A mensalidade${quem} de ${mes}, de <b>${brl(v.fullCents)}</b>, vence hoje. Dá para pagar em poucos segundos, com Pix ou cartão.</p>`;
+      body = `<p style="${P}">${hi}A mensalidade${quem} de ${mes}, de <b>${brl(v.fullCents)}</b>, vence hoje. Dá para pagar em poucos segundos, com Pix ou cartão. Pagando até amanhã (${v.graceUntil}), não há multa nem juros.</p>`;
+      break;
+    case "t_grace":
+      subject = `Último dia para pagar sem multa e juros${sufixo}`;
+      title = "Último dia sem multa e juros";
+      body = `<p style="${P}">${hi}A mensalidade${quem} de ${mes} venceu em ${v.dueDate}. Hoje é o último dia para pagar <b>${brl(v.fullCents)}</b> sem multa e juros.</p><p style="${BOX}">A partir de amanhã, entram multa de 2% e juros de mora de 1% ao mês, proporcionais aos dias de atraso.</p>`;
       break;
     case "t_late":
-      subject = `Mensalidade de ${mes} em aberto${sufixo}`;
-      title = `Mensalidade de ${mes} em aberto`;
-      body = `<p style="${P}">${hi}Não encontramos o pagamento da mensalidade${quem} de ${mes} (${brl(v.fullCents)}), que venceu em ${v.dueDate}. Se já pagou por outro meio, pode desconsiderar este aviso.</p>`;
+      subject = `Mensalidade de ${mes} em atraso${sufixo}`;
+      title = `Mensalidade de ${mes} em atraso`;
+      body = `<p style="${P}">${hi}Não encontramos o pagamento da mensalidade${quem} de ${mes}, que venceu em ${v.dueDate}.</p><p style="${BOX}">Valor de hoje: <b>${brl(v.priceNowCents)}</b> (mensalidade de ${brl(v.fullCents)}, multa de 2%: ${brl(v.fineCents)}, juros de 1% ao mês: ${brl(v.interestCents)}). Os juros seguem proporcionais aos dias de atraso.</p><p style="${P}">Se já pagou por outro meio, pode desconsiderar este aviso.</p>`;
       break;
   }
   return { subject, html: layout(title, body, { label: "Pagar mensalidade", href: ctx.href }, footer(ctx)) };

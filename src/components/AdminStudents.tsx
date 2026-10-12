@@ -24,6 +24,7 @@ export type AdminStudent = {
     method: "link" | "auto";
     status: "open" | "paid" | "exempt" | null;
     late: boolean;
+    graceToday: boolean;
     discountActive: boolean;
     discountUntil: string | null;
     dueDate: string | null;
@@ -40,6 +41,7 @@ function mensalidade(t: AdminStudent["tuition"]): { label: string; tone: Tone } 
   if (t.status !== "open") return { label: "—", tone: "gray" };
   if (t.late) return { label: "Em atraso", tone: "red" };
   if (t.method === "auto") return { label: "Débito a confirmar", tone: "amber" };
+  if (t.graceToday) return { label: "Último dia sem multa", tone: "amber" };
   if (t.discountActive) return { label: `Em aberto · 7% até ${t.discountUntil}`, tone: "amber" };
   return { label: `Em aberto · vence ${t.dueDate}`, tone: "amber" };
 }

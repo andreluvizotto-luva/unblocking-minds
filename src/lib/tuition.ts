@@ -72,20 +72,45 @@ export function dueDay(plan: Pick<TuitionPlan, "kind" | "due_day">) {
 
 export const discounted = (cents: number) => Math.round((cents * (100 - DISCOUNT_PCT)) / 100);
 
+// Atraso: o dia seguinte ao vencimento ainda é sem multa nem juros. A partir
+// do segundo dia, multa de 2% e juros de mora de 1% ao mês, proporcionais aos
+// dias desde o vencimento.
+export const FINE_PCT = 2;
+export const INTEREST_PCT_MONTH = 1;
+const GRACE_DAYS = 1;
+
+const dayNumber = (y: number, m: number, d: number) => Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
+
+export function lateCharges(fullCents: number, daysLate: number) {
+  if (daysLate <= GRACE_DAYS) return { fineCents: 0, interestCents: 0 };
+  return {
+    fineCents: Math.round((fullCents * FINE_PCT) / 100),
+    interestCents: Math.round((fullCents * INTEREST_PCT_MONTH * daysLate) / 100 / 30),
+  };
+}
+
 // Situação de uma cobrança em aberto hoje.
 export function invoiceView(plan: TuitionPlan, inv: TuitionInvoice, today = spToday()) {
   const mon = parseMonth(inv.month);
   const rel = cmpMonth(mon, today); // >0: cobrança de um mês futuro (aberta desde o dia 25)
   const due = dueDay(plan);
   const discountActive = plan.kind === "private_class" && (rel > 0 || (rel === 0 && today.d <= DISCOUNT_DAY));
-  const late = rel < 0 || (rel === 0 && today.d > due);
+  const daysLate = Math.max(0, dayNumber(today.y, today.m, today.d) - dayNumber(mon.y, mon.m, due));
+  const late = daysLate > GRACE_DAYS;
+  const graceToday = daysLate > 0 && daysLate <= GRACE_DAYS;
+  const { fineCents, interestCents } = inv.status === "open" ? lateCharges(inv.amount_cents, daysLate) : { fineCents: 0, interestCents: 0 };
   return {
     id: inv.id,
     month: inv.month,
     monthLabel: monthLabel(inv.month),
     status: inv.status,
     fullCents: inv.amount_cents,
-    priceNowCents: discountActive ? discounted(inv.amount_cents) : inv.amount_cents,
+    priceNowCents: discountActive ? discounted(inv.amount_cents) : inv.amount_cents + fineCents + interestCents,
+    fineCents,
+    interestCents,
+    daysLate,
+    graceToday,
+    graceUntil: ddmm(due + GRACE_DAYS, inv.month),
     discountCents: plan.kind === "private_class" ? discounted(inv.amount_cents) : null,
     discountActive,
     discountUntil: plan.kind === "private_class" ? ddmm(DISCOUNT_DAY, inv.month) : null,
@@ -223,11 +248,13 @@ export function reminderKindFor(plan: TuitionPlan, inv: TuitionInvoice, today = 
     if (d === 7) return "t_d7";
     if (d <= 9) return "t_d8";
     if (d === 10) return "t_due";
+    if (d === 11) return "t_grace";
     return d >= 15 ? "t_late" : null;
   }
   if (d <= due - 3) return "t_d1";
   if (d < due) return "t_pre";
   if (d === due) return "t_due";
+  if (d === due + 1) return "t_grace";
   return d >= due + 5 ? "t_late" : null;
 }
 
@@ -270,4 +297,4 @@ export async function loadPlan(admin: ReturnType<typeof supabaseAdmin>, userId: 
   return (data as TuitionPlan | null) ?? null;
 }
 
-export type TuitionEmailKind = "t_open" | "t_d1" | "t_d5" | "t_d7" | "t_d8" | "t_pre" | "t_due" | "t_late";
+export type TuitionEmailKind = "t_open" | "t_d1" | "t_d5" | "t_d7" | "t_d8" | "t_pre" | "t_due" | "t_grace" | "t_late";

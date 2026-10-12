@@ -20,6 +20,11 @@ export type InvoiceView = {
   dueDate: string;
   late: boolean;
   daysToDiscountEnd: number | null;
+  fineCents: number;
+  interestCents: number;
+  daysLate: number;
+  graceToday: boolean;
+  graceUntil: string;
   paidAt: string | null;
   paidAmount: number | null;
   paidHow: "link" | "auto" | "manual" | null;
@@ -57,7 +62,7 @@ function OpenInvoice({ inv, pc, onPay, paying, auto, dueDay }: { inv: InvoiceVie
     ? <span style={pill("#eef2ea", "var(--sage)")}>Débito programado</span>
     : inv.late
       ? <span style={pill("#f7e1e5", "var(--wine)")}>Vencida</span>
-      : <span style={pill("#fdf0d6", "#7a4d05")}>{inv.discountActive ? "Em aberto" : `Vence em ${inv.dueDate}`}</span>;
+      : <span style={pill("#fdf0d6", "#7a4d05")}>{inv.discountActive ? "Em aberto" : inv.graceToday ? "Último dia sem multa" : `Vence em ${inv.dueDate}`}</span>;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
@@ -89,11 +94,18 @@ function OpenInvoice({ inv, pc, onPay, paying, auto, dueDay }: { inv: InvoiceVie
             {pc && inv.discountActive && (
               <>Pagando até <b>{inv.discountUntil}</b> você tem <b>7% de desconto</b>. Depois disso, o valor é {brl(inv.fullCents)}, com vencimento em {inv.dueDate}.</>
             )}
-            {pc && !inv.discountActive && !inv.late && (
+            {pc && !inv.discountActive && !inv.late && !inv.graceToday && (
               <>O desconto de 7% valia até {inv.discountUntil}. O vencimento é <b>{inv.dueDate}</b>. No mês que vem, pagando até o dia 7, a economia é de {brl(inv.fullCents - (inv.discountCents ?? inv.fullCents))}.</>
             )}
-            {!pc && !inv.late && <>Vencimento em <b>{inv.dueDate}</b>.</>}
-            {inv.late && <>Venceu em {inv.dueDate}. Você ainda pode pagar por aqui.</>}
+            {!pc && !inv.late && !inv.graceToday && <>Vencimento em <b>{inv.dueDate}</b>.</>}
+            {inv.graceToday && (
+              <>Venceu em {inv.dueDate}. <b>Hoje é o último dia para pagar sem multa e juros.</b></>
+            )}
+            {inv.late && (
+              <>
+                Venceu em {inv.dueDate}. Valor de hoje com multa de 2% ({brl(inv.fineCents)}) e juros de mora de 1% ao mês, proporcionais aos {inv.daysLate} dias de atraso ({brl(inv.interestCents)}). Mensalidade: {brl(inv.fullCents)}.
+              </>
+            )}
           </div>
           <PhysicalButton onClick={onPay} disabled={paying} background="var(--teal)" color="var(--ink)" shadowColor="var(--mustard)">
             {paying ? "Abrindo pagamento…" : `Pagar ${inv.monthLabel.split("/")[0]} por ${brl(inv.priceNowCents)}`}
