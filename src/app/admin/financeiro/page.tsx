@@ -6,10 +6,25 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { Card, Button, SectionLabel, Spark } from "@/components/ui";
 import { AdminTabs } from "@/components/AdminTabs";
-import { statusPill } from "@/components/TuitionAdmin";
-import { brl, type InvoiceView } from "@/components/Tuition";
+import { brl } from "@/components/Tuition";
 
-type Row = InvoiceView & { userId: string; name: string | null; kind: string; method: string; guardianName: string | null; phone: string | null };
+type Tone = "green" | "amber" | "red" | "gray";
+type Row = {
+  id: string;
+  userId: string;
+  name: string | null;
+  source: "tuition" | "app";
+  typeLabel: string;
+  expectedCents: number;
+  receivedCents: number;
+  statusLabel: string;
+  tone: Tone;
+  late: boolean;
+  open: boolean;
+  exempt: boolean;
+  contact: { label: string; phone: string | null } | null;
+};
+const PILL: Record<Tone, [string, string]> = { green: ["var(--sage)", "#fff"], amber: ["#fdf0d6", "#7a4d05"], red: ["#f7e1e5", "var(--wine)"], gray: ["#eceaf3", "var(--muted)"] };
 type Finance = {
   month: string;
   monthLabel: string;
@@ -27,16 +42,18 @@ type Finance = {
     lateCount: number;
     exemptCount: number;
     withDiscount: number;
+    tuitionReceivedCents: number;
+    appReceivedCents: number;
   };
   history: { month: string; monthLabel: string; expectedCents: number; receivedCents: number }[];
   rows: Row[];
-  app: { receivedCents: number; payments: number };
 };
 
 const KINDS = [
   { id: "", label: "Todos" },
   { id: "private_class", label: "Private Class" },
   { id: "student_leadership", label: "Student Leadership" },
+  { id: "app", label: "App +Unblocking" },
 ];
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -175,9 +192,9 @@ export default function FinanceiroPage() {
         {data && t && (
           <div style={{ opacity: loading ? 0.6 : 1, transition: "opacity .15s" }}>
             <Card style={{ marginBottom: 16 }}>
-              <SectionLabel>Mensalidades Unblocking Minds · {cap(data.monthLabel)}{data.kind ? ` · ${KINDS.find((k) => k.id === data.kind)?.label}` : ""}</SectionLabel>
+              <SectionLabel>Receitas · {cap(data.monthLabel)}{data.kind ? ` · ${KINDS.find((k) => k.id === data.kind)?.label}` : ""}</SectionLabel>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-                <Kpi label="Esperado" value={brl(t.expectedCents)} sub={`${t.billable} ${t.billable === 1 ? "mensalidade" : "mensalidades"}${t.exemptCount ? ` · ${t.exemptCount} isenta${t.exemptCount === 1 ? "" : "s"}` : ""}`} />
+                <Kpi label="Esperado" value={brl(t.expectedCents)} sub={`${t.billable} ${t.billable === 1 ? "cobrança" : "cobranças"}${t.exemptCount ? ` · ${t.exemptCount} isenta${t.exemptCount === 1 ? "" : "s"}` : ""}`} />
                 <Kpi label="Realizado" value={brl(t.receivedCents)} sub={`${t.paidCount} de ${t.billable} pagaram${pct !== null ? ` · ${pct}% do esperado` : ""}`} tone="green" />
                 <Kpi label="Em aberto" value={brl(t.pendingCents)} sub={`${t.openCount} ${t.openCount === 1 ? "aluno" : "alunos"} (valor cheio)`} tone={t.openCount ? "amber" : undefined} />
                 <Kpi label="Em atraso" value={brl(t.lateCents)} sub={`${t.lateCount} ${t.lateCount === 1 ? "aluno" : "alunos"}`} tone={t.lateCount ? "red" : undefined} />
@@ -194,7 +211,13 @@ export default function FinanceiroPage() {
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <Kpi label="Descontos concedidos" value={brl(t.discountCents)} sub={`${t.withDiscount} ${t.withDiscount === 1 ? "pagamento" : "pagamentos"} com 7%`} />
                 <Kpi label="Multa e juros recebidos" value={brl(t.extraCents)} />
+                {!data.kind && <Kpi label="Realizado por origem" value={brl(t.tuitionReceivedCents)} sub={`escola · app +Unblocking ${brl(t.appReceivedCents)}`} />}
               </div>
+              {(!data.kind || data.kind === "app") && (
+                <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 10, lineHeight: 1.5 }}>
+                  No app +Unblocking, o esperado soma os pagamentos do mês e o plano mensal de quem tinha renovação vencendo no mês e não renovou. Nos meses anteriores do gráfico, o esperado do app é só o que foi pago.
+                </div>
+              )}
             </Card>
 
             <Card style={{ marginBottom: 16 }}>
@@ -205,7 +228,7 @@ export default function FinanceiroPage() {
             <Card style={{ marginBottom: 16 }}>
               <SectionLabel>Alunos no mês ({data.rows.length})</SectionLabel>
               {data.rows.length === 0 ? (
-                <div style={{ fontSize: 13, color: "var(--muted)" }}>Nenhuma mensalidade neste mês{data.kind ? " para este tipo de aluno" : ""}.</div>
+                <div style={{ fontSize: 13, color: "var(--muted)" }}>Nenhuma cobrança ou pagamento neste mês{data.kind ? " para este tipo de aluno" : ""}.</div>
               ) : (
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
@@ -220,26 +243,27 @@ export default function FinanceiroPage() {
                     </thead>
                     <tbody>
                       {data.rows.map((r) => {
-                        const wa = r.phone ? `https://wa.me/55${r.phone.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "")}` : null;
+                        const ph = r.contact?.phone;
+                        const wa = ph ? `https://wa.me/55${ph.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "")}` : null;
+                        const [bg, fg] = PILL[r.tone];
                         return (
                           <tr key={r.id} style={{ borderTop: "1px solid var(--line)" }}>
                             <td style={{ padding: "8px 6px" }}>
                               <Link href={`/admin/${r.userId}`} style={{ color: "var(--ink)", fontWeight: 600 }}>{r.name || "(sem nome)"}</Link>
-                              <div style={{ fontSize: 11.5, color: "var(--muted)" }}>
-                                {r.kind === "private_class" ? "Private Class" : "Student Leadership"}
-                                {r.method === "auto" ? " · débito automático" : ""}
-                              </div>
+                              <div style={{ fontSize: 11.5, color: "var(--muted)" }}>{r.typeLabel}</div>
                             </td>
-                            <td style={{ padding: "8px 6px" }}>{r.status === "exempt" ? "—" : brl(r.fullCents)}</td>
-                            <td style={{ padding: "8px 6px" }}>{r.status === "paid" ? brl(r.paidAmount ?? r.fullCents) : "—"}</td>
-                            <td style={{ padding: "8px 6px" }}>{statusPill(r)}</td>
+                            <td style={{ padding: "8px 6px" }}>{r.exempt ? "—" : brl(r.expectedCents)}</td>
+                            <td style={{ padding: "8px 6px" }}>{r.receivedCents ? brl(r.receivedCents) : "—"}</td>
+                            <td style={{ padding: "8px 6px" }}>
+                              <span style={{ fontSize: 11.5, fontWeight: 700, padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap", background: bg, color: fg }}>{r.statusLabel}</span>
+                            </td>
                             <td style={{ padding: "8px 6px", fontSize: 12 }}>
-                              {wa && r.status === "open" ? (
+                              {wa && r.open ? (
                                 <a href={wa} target="_blank" rel="noopener noreferrer" style={{ color: "var(--ink)" }}>
-                                  WhatsApp{r.guardianName ? ` · ${r.guardianName.split(" ")[0]}` : ""}
+                                  WhatsApp · {r.contact!.label}
                                 </a>
                               ) : (
-                                r.guardianName || "—"
+                                r.contact?.label || "—"
                               )}
                             </td>
                           </tr>
@@ -251,12 +275,6 @@ export default function FinanceiroPage() {
               )}
             </Card>
 
-            <Card style={{ marginBottom: 16 }}>
-              <SectionLabel>Assinaturas do app +Unblocking · {cap(data.monthLabel)}</SectionLabel>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Kpi label="Receita do mês" value={brl(data.app.receivedCents)} sub={`${data.app.payments} ${data.app.payments === 1 ? "pagamento" : "pagamentos"} · não entra no filtro de tipo`} />
-              </div>
-            </Card>
           </div>
         )}
       </div>
