@@ -245,7 +245,7 @@ export default function FinanceiroPage() {
                       {data.rows.map((r) => {
                         const ph = r.contact?.phone;
                         const wa = ph ? `https://wa.me/55${ph.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "")}` : null;
-                        const [bg, fg] = PILL[r.tone];
+                        const [bg, fg] = PILL[r.tone] || PILL.gray;
                         return (
                           <tr key={r.id} style={{ borderTop: "1px solid var(--line)" }}>
                             <td style={{ padding: "8px 6px" }}>
