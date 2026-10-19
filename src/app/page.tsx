@@ -19,6 +19,7 @@ import { LevelPicker } from "@/components/LevelPicker";
 import { LevelCheck, ChallengeNotice } from "@/components/LevelCheck";
 import { checkAccessOrRedirect } from "@/lib/access-check";
 import { TuitionPopup } from "@/components/Tuition";
+import { FirstAccessTour, tourKey } from "@/components/FirstAccessTour";
 import { ShareResultButton } from "@/components/ShareResultCard";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
 import { getQuoteOfDay } from "@/lib/quotes";
@@ -291,6 +292,15 @@ export default function HomePage() {
   const [nextAchievement, setNextAchievement] = useState<AchievementItem | null>(null);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [gamLoaded, setGamLoaded] = useState(false);
+  const [pendingLoaded, setPendingLoaded] = useState(false);
+  // Tour do primeiro acesso: quem ainda não fez nenhuma aula e não concluiu
+  // nem pulou o tour. "?tour=1" na URL força a abertura (para rever/testar).
+  const [tourDone, setTourDone] = useState(true);
+  const [forceTour, setForceTour] = useState(false);
+  // Depois do tour, destaca onde escolher a aula até o aluno começar.
+  const [guide, setGuide] = useState(false);
   const quote = React.useMemo(() => getQuoteOfDay(), []);
   const greeting = React.useMemo(() => pickGreeting(new Date().getHours()), []);
 
@@ -315,6 +325,11 @@ export default function HomePage() {
         .select("name, default_level, is_admin")
         .eq("id", data.user.id)
         .single();
+      setUserId(data.user.id);
+      try {
+        setTourDone(localStorage.getItem(tourKey(data.user.id)) === "done");
+        setForceTour(new URLSearchParams(window.location.search).get("tour") === "1");
+      } catch {}
       setStudentName(profile?.name || null);
       setIsAdmin(!!profile?.is_admin);
       setLevel(profile?.default_level || null);
@@ -323,7 +338,8 @@ export default function HomePage() {
       fetch("/api/session/pending")
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => setPending(d?.pending || null))
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setPendingLoaded(true));
 
       fetch("/api/profile/gamification")
         .then((r) => (r.ok ? r.json() : null))
@@ -334,9 +350,25 @@ export default function HomePage() {
           setCurrentStreak(gam.currentStreak || 0);
           setSessionCount(gam.sessionCount || 0);
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setGamLoaded(true));
     });
   }, []);
+
+  const showTour = stage === "setup" && gamLoaded && pendingLoaded && !isAdmin && (forceTour || (!tourDone && sessionCount === 0 && !pending));
+
+  function closeTour(finished: boolean) {
+    try {
+      if (userId) localStorage.setItem(tourKey(userId), "done");
+    } catch {}
+    setTourDone(true);
+    setForceTour(false);
+    if (finished) {
+      setGuide(true);
+      const target = document.getElementById(level ? "tour-topic" : "tour-start");
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -707,7 +739,7 @@ export default function HomePage() {
 
             <BillingBanner />
 
-            <Card style={{ marginBottom: 16 }}>
+            <Card id="tour-topic" style={{ marginBottom: 16, scrollMarginTop: 16 }}>
               <SectionHeading>Assunto de hoje</SectionHeading>
               <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                 {TOPIC_KINDS.map((t) => {
@@ -765,8 +797,13 @@ export default function HomePage() {
               )}
             </Card>
 
-            <Card style={{ marginBottom: 20 }}>
+            <Card id="tour-format" style={{ marginBottom: 20, scrollMarginTop: 16, ...(guide && !format ? { boxShadow: "0 0 0 3px var(--teal), 0 2px 14px rgba(16, 20, 58, 0.10)" } : {}) }}>
               <SectionHeading>Formato da aula</SectionHeading>
+              {guide && !format && (
+                <div style={{ marginTop: 6, fontSize: 13, color: "var(--mustard-dark)", fontWeight: 600 }}>
+                  Toque em um formato para liberar a sua primeira aula.
+                </div>
+              )}
               <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                 {LESSON_FORMATS.map((f) => (
                   <button
@@ -877,7 +914,7 @@ export default function HomePage() {
                 )}
               </div>
             ) : level ? (
-              <div style={{ borderRadius: 22, background: "#f7f5ef", padding: 22, display: "flex", flexDirection: "column", gap: 16, boxShadow: "0 14px 34px rgba(16,20,58,.22)", marginBottom: 22 }}>
+              <div id="tour-start" style={{ borderRadius: 22, background: "#f7f5ef", padding: 22, display: "flex", flexDirection: "column", gap: 16, boxShadow: "0 14px 34px rgba(16,20,58,.22)", marginBottom: 22 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--mustard-dark)" }}>
                     Aula de hoje · {LEVEL_LABELS[level] || level}
@@ -935,7 +972,9 @@ export default function HomePage() {
                 })()}
               </div>
             ) : (
-              <LevelPicker onSaved={setLevel} />
+              <div id="tour-start" style={{ scrollMarginTop: 16 }}>
+                <LevelPicker onSaved={setLevel} />
+              </div>
             )}
 
             {level && (
@@ -1050,7 +1089,8 @@ export default function HomePage() {
         )}
 
       </div>
-      {stage === "setup" && <TuitionPopup />}
+      {showTour && <FirstAccessTour name={studentName} needsLevel={!level} onClose={closeTour} />}
+      {stage === "setup" && !showTour && <TuitionPopup />}
       <BottomNav onSignOut={signOut} isAdmin={isAdmin} />
     </div>
   );
