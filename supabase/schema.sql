@@ -629,3 +629,23 @@ end;
 $$;
 revoke all on function public.apply_tuition_payment(uuid, text, text, text, integer, text) from public, anon, authenticated;
 grant execute on function public.apply_tuition_payment(uuid, text, text, text, integer, text) to service_role;
+
+-- ---------------------------------------------------------------- GRANTs da Data API
+-- A partir de 30/10/2026 a Supabase não concede mais acesso automático a tabelas novas em public,
+-- inclusive ao recriar o banco (projeto novo, preview branch, supabase db reset). Sem GRANT,
+-- até o service_role recebe "permission denied". Espelha o que está em produção hoje; o RLS
+-- continua decidindo o acesso de cada usuário.
+
+-- Lidas/escritas pelo navegador (conforme RLS)
+grant select, insert, update, delete on
+  public.profiles, public.sessions, public.difficulties, public.reports, public.achievements
+to anon, authenticated, service_role;
+
+-- Só o servidor (service_role)
+revoke all privileges on table public.user_achievements, public.skill_progress from anon, authenticated;
+grant select, insert, update, delete on
+  public.user_achievements, public.skill_progress, public.token_usage, public.game_scores,
+  public.payments, public.billing_emails, public.tuition_plans, public.tuition_invoices
+to service_role;
+
+grant usage, select on all sequences in schema public to anon, authenticated, service_role;
