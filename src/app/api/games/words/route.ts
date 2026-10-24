@@ -8,7 +8,7 @@ import { montarRodada } from "@/lib/palavras";
 // lista completa vai para o navegador, que confere cada palavra sem uma
 // chamada a mais por tentativa; o placar salvo é limitado ao máximo do jogo.
 export async function POST() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const check = await requireActiveUser(supabase);
   if (check.ok === false) {
     return NextResponse.json({ error: check.error }, { status: check.status });

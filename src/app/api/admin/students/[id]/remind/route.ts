@@ -6,7 +6,9 @@ import { manualReminderEmail, sendEmail } from "@/lib/email";
 
 // "Enviar lembrete agora" do painel: e-mail de assinatura para um aluno
 // demo ou assinante, fora do ciclo automático do cron.
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  // Desde o Next 15 os params da rota chegam como Promise.
+  const params = await ctx.params;
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 

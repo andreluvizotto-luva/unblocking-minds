@@ -20,7 +20,9 @@ async function planByToken(token: string) {
 
 const firstName = (n: string | null | undefined) => (n ? n.trim().split(/\s+/)[0] : null);
 
-export async function GET(_req: Request, { params }: { params: { token: string } }) {
+export async function GET(_req: Request, ctx: { params: Promise<{ token: string }> }) {
+  // Desde o Next 15 os params da rota chegam como Promise.
+  const params = await ctx.params;
   const plan = await planByToken(params.token);
   if (!plan) return NextResponse.json({ error: "Link inválido ou desativado." }, { status: 404 });
   const admin = supabaseAdmin();
@@ -29,7 +31,9 @@ export async function GET(_req: Request, { params }: { params: { token: string }
   return NextResponse.json({ studentName: firstName(prof?.name), guardianName: firstName(plan.guardian_name), ...state });
 }
 
-export async function POST(req: Request, { params }: { params: { token: string } }) {
+export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
+  // Desde o Next 15 os params da rota chegam como Promise.
+  const params = await ctx.params;
   const plan = await planByToken(params.token);
   if (!plan) return NextResponse.json({ error: "Link inválido ou desativado." }, { status: 404 });
   if (plan.method !== "link") return NextResponse.json({ error: "Esta mensalidade está no débito automático." }, { status: 400 });

@@ -7,7 +7,7 @@ import { BILLING_PERIOD_DAYS, billingPlans, billingPriceCents } from "@/lib/infi
 // Situação da assinatura do aluno logado, para a tela Minha assinatura e
 // para os avisos da home.
 export async function GET() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();

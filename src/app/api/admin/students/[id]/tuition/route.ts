@@ -31,7 +31,9 @@ async function payload(userId: string) {
   return { plan, invoices };
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  // Desde o Next 15 os params da rota chegam como Promise.
+  const params = await ctx.params;
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (!UUID.test(params.id)) return NextResponse.json({ error: "Aluno inválido" }, { status: 400 });
@@ -39,7 +41,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 }
 
 // Salva a configuração de mensalidade do aluno.
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  // Desde o Next 15 os params da rota chegam como Promise.
+  const params = await ctx.params;
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (!UUID.test(params.id)) return NextResponse.json({ error: "Aluno inválido" }, { status: 400 });
@@ -104,7 +108,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 // Ações numa cobrança: marcar paga por fora, confirmar débito automático,
 // isentar ou reabrir.
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  // Desde o Next 15 os params da rota chegam como Promise.
+  const params = await ctx.params;
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (!UUID.test(params.id)) return NextResponse.json({ error: "Aluno inválido" }, { status: 400 });

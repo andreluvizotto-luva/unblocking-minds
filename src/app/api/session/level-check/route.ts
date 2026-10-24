@@ -14,7 +14,7 @@ const ASK_FIRST_LESSONS = 3;
 //    guarda um suggested_level e o relatório oferece subir.
 // Alunos Unblocking têm o nível definido pelo admin e não entram aqui.
 async function eligibility(sessionId: string) {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const check = await requireActiveUser(supabase);
   if (check.ok === false) return { error: NextResponse.json({ error: check.error }, { status: check.status }) };
 

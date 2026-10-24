@@ -10,7 +10,7 @@ import { TRIVIA_QUESTIONS, TRIVIA_POINTS_PER_QUESTION } from "@/lib/games";
 // natureza...), com as perguntas escritas em inglês no nível do aluno. Difere
 // do Quiz, que é sobre a própria língua. Usa o Haiku, como os outros games.
 export async function POST() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const check = await requireActiveUser(supabase);
   if (check.ok === false) {
     return NextResponse.json({ error: check.error }, { status: check.status });
