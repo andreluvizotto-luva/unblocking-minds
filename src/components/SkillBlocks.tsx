@@ -934,7 +934,7 @@ export function SpeakingBlock({
   }
 
   // Ao parar a gravação, envia o áudio para a rota de transcrição
-  // (OpenAI Whisper no servidor) — funciona igual em PC, iOS e Android,
+  // (OpenAI gpt-4o-transcribe no servidor) — funciona igual em PC, iOS e Android,
   // ao contrário da antiga SpeechRecognition do navegador.
   async function handleStop() {
     setTranscribing(true);
