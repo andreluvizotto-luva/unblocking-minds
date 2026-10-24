@@ -40,8 +40,24 @@ const MAX_TOKENS = 8000;
 // gerar conteúdo extenso). writing_evaluate e speaking_evaluate pedem um
 // JSON bem menor (poucos campos de nota/observação curta), então usam um
 // modelo de tier mais barato — ver HAIKU_MODEL nas rotas que chamam askClaude.
-const SONNET_MODEL = "claude-sonnet-4-6";
-export const HAIKU_MODEL = "claude-haiku-4-5-20251001";
+//
+// Geração 5.5 (out/2026). O tokenizador novo conta ~30% mais tokens para o
+// mesmo texto; o maior session_generate dos últimos 60 dias usou 3.258
+// tokens de saída, então o MAX_TOKENS de 8000 continua com folga.
+const SONNET_MODEL = "claude-sonnet-5-5";
+export const HAIKU_MODEL = "claude-haiku-5-5";
+
+// Nos modelos 5.5 o raciocínio (thinking) vem LIGADO por padrão, e ele conta
+// dentro do max_tokens e deixa a resposta mais lenta. Nas versões anteriores
+// as chamadas rodavam sem thinking, e é esse comportamento que mantemos: a
+// tarefa é gerar um JSON a partir de instruções claras, e uma aula cortada
+// no meio por falta de tokens é pior do que um ganho marginal de qualidade.
+// Cada modelo desliga de um jeito: o Sonnet 5.5 recusa "disabled" (erro 400)
+// e usa "between_tools"; o Haiku 5.5 aceita "disabled" com effort até "high"
+// (o padrão dele é "medium").
+function configThinking(model: string) {
+  return model === HAIKU_MODEL ? { type: "disabled" } : { type: "between_tools" };
+}
 
 // Contexto para registrar quanto cada operação consumiu. Opcional: sem ele
 // a chamada funciona igual, só não é contabilizada.
@@ -75,16 +91,23 @@ async function registrarUso(meta: UsoMeta | undefined, data: any) {
 }
 
 async function callClaude(prompt: string, system: string, apiKey: string, model: string, meta?: UsoMeta) {
+  // Se o Sonnet recusar a chamada por segurança, a própria Anthropic tenta de
+  // novo num modelo alternativo ("fallbacks": "default"). O Haiku 5.5 não tem
+  // essa opção (com ela a chamada daria erro), então só vai no Sonnet.
+  const comFallback = model === SONNET_MODEL;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
+      ...(comFallback ? { "anthropic-beta": "server-side-fallback-2026-07-01" } : {}),
     },
     body: JSON.stringify({
       model,
       max_tokens: MAX_TOKENS,
+      thinking: configThinking(model),
+      ...(comFallback ? { fallbacks: "default" } : {}),
       // O system prompt é o mesmo texto em toda chamada de uma mesma
       // operação (UNBLOCKING_VOICE_SYSTEM_PROMPT se repete em 3 das 4
       // operações). Marcar como cache_control deixa a Anthropic reaproveitar
@@ -126,6 +149,16 @@ export async function askClaude(prompt: string, system?: string, meta?: UsoMeta,
   // desaparece ao repetir. Só falha de verdade se as duas quebrarem.
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     const { text, stopReason } = await callClaude(prompt, systemPrompt, apiKey, model, meta);
+
+    // Os modelos 5.5 podem recusar uma chamada por filtro de segurança
+    // (resposta 200 sem texto). Repetir o mesmo pedido só gastaria de novo,
+    // então falhamos na hora com uma mensagem que o aluno entende.
+    if (stopReason === "refusal") {
+      console.error(`[askClaude] tentativa ${tentativa}: a IA recusou o pedido (stop_reason=refusal)`);
+      throw new Error(
+        "A IA não conseguiu montar este conteúdo agora. Tente de novo em alguns instantes."
+      );
+    }
 
     if (stopReason === "max_tokens") {
       ultimoErro = `resposta truncada no limite de ${MAX_TOKENS} tokens`;
