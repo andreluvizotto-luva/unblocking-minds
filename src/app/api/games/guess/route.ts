@@ -9,7 +9,7 @@ import { GUESS_CLUES, nameParts, clueRevealsName } from "@/lib/games";
 // inglês — da mais difícil para a mais fácil. As dicas são a prática de
 // leitura; o nome é só o desafio. Usa o Haiku: conteúdo curto e simples.
 export async function POST() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const check = await requireActiveUser(supabase);
   if (check.ok === false) {
     return NextResponse.json({ error: check.error }, { status: check.status });

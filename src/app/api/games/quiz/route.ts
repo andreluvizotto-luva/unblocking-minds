@@ -9,7 +9,7 @@ import { QUIZ_QUESTIONS, QUIZ_POINTS_PER_QUESTION } from "@/lib/games";
 // aluno. Usa o Haiku (mais barato) — é um conteúdo curto e de formato
 // simples, como a avaliação de fala e escrita, sem o peso de uma aula.
 export async function POST() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const check = await requireActiveUser(supabase);
   if (check.ok === false) {
     return NextResponse.json({ error: check.error }, { status: check.status });

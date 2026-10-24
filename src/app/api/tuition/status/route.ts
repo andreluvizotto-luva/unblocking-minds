@@ -7,7 +7,7 @@ import { hasGuardian, loadPlan, tuitionState } from "@/lib/tuition";
 // não vê cobrança nenhuma no app (show: false); quem paga é o responsável,
 // pelo link do e-mail.
 export async function GET() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();

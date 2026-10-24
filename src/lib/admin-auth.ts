@@ -4,7 +4,7 @@ import { supabaseServer } from "./supabase-server";
 // como admin no próprio perfil (a leitura da própria linha é permitida pela
 // RLS normal — não precisa da service_role para essa checagem).
 export async function requireAdmin() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();

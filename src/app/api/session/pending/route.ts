@@ -6,7 +6,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 // próprio aluno de propósito: a RLS já garante que ele só enxerga as
 // próprias aulas.
 export async function GET() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();

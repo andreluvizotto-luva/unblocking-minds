@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   // Diferente das outras rotas que gastam API, esta nunca tinha nenhuma
   // checagem de autenticação — qualquer um com a URL conseguia transcrever
   // áudio pela conta da OpenAI do projeto, logado ou não.
-  const check = await requireActiveUser(supabaseServer());
+  const check = await requireActiveUser(await supabaseServer());
   if (check.ok === false) {
     return NextResponse.json({ error: check.error }, { status: check.status });
   }

@@ -25,7 +25,7 @@ const PROGRESS_SOURCE: Record<string, "streak" | "sessions"> = {
 };
 
 export async function GET() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();

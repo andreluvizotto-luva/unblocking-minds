@@ -7,7 +7,7 @@ import { mensagemParaOAluno } from "@/lib/erro-do-aluno";
 export async function POST(req: Request) {
   const { sessionId, level, prompt: taskPrompt, text } = await req.json();
 
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const check = await requireActiveUser(supabase);
   if (check.ok === false) {
     return NextResponse.json({ error: check.error }, { status: check.status });

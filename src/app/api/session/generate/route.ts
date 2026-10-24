@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
   const skills = FORMAT_SKILLS[format] || FORMAT_SKILLS.full;
 
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const check = await requireActiveUser(supabase);
   if (check.ok === false) {
     return NextResponse.json({ error: check.error }, { status: check.status });

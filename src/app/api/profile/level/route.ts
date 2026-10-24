@@ -10,7 +10,7 @@ const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 // depois disso, trocar continua sendo coisa do admin (o trigger
 // protect_admin_only_profile_fields impede o navegador de mudar).
 export async function POST(req: Request) {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const check = await requireActiveUser(supabase);
   if (check.ok === false) return NextResponse.json({ error: check.error }, { status: check.status });
 

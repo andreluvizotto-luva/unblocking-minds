@@ -4,7 +4,9 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  // Desde o Next 15 os params da rota chegam como Promise.
+  const params = await ctx.params;
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -95,7 +97,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   });
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  // Desde o Next 15 os params da rota chegam como Promise.
+  const params = await ctx.params;
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -161,7 +165,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 //  1. um admin nunca apaga a própria conta;
 //  2. não é possível apagar outro admin sem antes remover o status de
 //     administrador dele — evita perder acesso ao painel por engano.
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  // Desde o Next 15 os params da rota chegam como Promise.
+  const params = await ctx.params;
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 

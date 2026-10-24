@@ -14,7 +14,7 @@ import { requireActiveUser } from "@/lib/require-active-user";
 const MAX_BYTES = 512 * 1024;
 
 export async function POST(req: Request) {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const check = await requireActiveUser(supabase);
   if (check.ok === false) {
     return NextResponse.json({ error: check.error }, { status: check.status });

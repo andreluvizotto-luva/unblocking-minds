@@ -7,7 +7,7 @@ import { createCheckoutLink, findPlan } from "@/lib/infinitepay";
 // requireActiveUser de propósito: quem está com o acesso vencido precisa
 // justamente conseguir pagar. Só a conta desabilitada pelo admin é barrada.
 export async function POST(req: Request) {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();
