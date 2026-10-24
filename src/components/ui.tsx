@@ -644,7 +644,7 @@ function extensionForMime(mime: string) {
 }
 
 // Hook de gravação de áudio (microfone) + envio para transcrição no
-// servidor (OpenAI Whisper) — substitui a antiga SpeechRecognition do
+// servidor (OpenAI gpt-4o-transcribe) — substitui a antiga SpeechRecognition do
 // navegador, que não existe em nenhum navegador no iOS. Funciona em
 // qualquer navegador com getUserMedia/MediaRecorder (PC, iOS 14.3+,
 // Android); requer HTTPS ou localhost (exigência do próprio navegador

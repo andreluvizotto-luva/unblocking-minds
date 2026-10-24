@@ -3,8 +3,23 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireActiveUser } from "@/lib/require-active-user";
 
-// Vozes disponíveis na API de TTS da OpenAI.
+// Vozes disponíveis na API de TTS da OpenAI. O gpt-4o-mini-tts aceita mais
+// vozes (ash, coral, sage, marin, cedar…), mas mantemos as seis de sempre
+// porque o SkillBlocks.tsx as separa por gênero para as aulas comparativas.
 const OPENAI_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+
+// Modelo de TTS. Saímos do tts-1 para o gpt-4o-mini-tts, que soa mais natural
+// e aceita "instructions" (tom e ritmo). Atenção: a OpenAI marcou os dois como
+// descontinuados, com desligamento em 06/01/2027 — o substituto indicado só
+// existe na Realtime API, então esta rota vai precisar ser revista até lá.
+const TTS_MODEL = "gpt-4o-mini-tts";
+
+// Orientação de leitura para quem está aprendendo inglês. O tts-1 não tinha
+// isso; o "speed" continua, mas o ritmo agora é guiado principalmente aqui.
+const TTS_INSTRUCTIONS =
+  "You are reading a listening exercise for Brazilian students learning English. " +
+  "Speak in a clear, natural and friendly tone, at a slightly slower pace than normal conversation, " +
+  "pronouncing every word distinctly. Do not add, skip or change any words.";
 
 // Bucket de Storage onde o áudio já gerado fica em cache (ver
 // criar-bucket-tts-audio.sql). Sem policy de RLS pra authenticated/anon —
@@ -102,9 +117,10 @@ export async function POST(req: Request) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "tts-1",
+      model: TTS_MODEL,
       voice,
       input: text,
+      instructions: TTS_INSTRUCTIONS,
       speed: 0.95,
       response_format: "mp3",
     }),

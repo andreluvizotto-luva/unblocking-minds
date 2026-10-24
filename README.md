@@ -12,10 +12,10 @@ src/
     api/
       session/generate/      → gera tema + exercícios do dia (Claude) e salva no banco
       speaking/evaluate/     → avalia a transcrição de fala (Claude) e registra dificuldades
-      speaking/transcribe/   → transcreve o áudio gravado (OpenAI Whisper) — PC, iOS e Android
+      speaking/transcribe/   → transcreve o áudio gravado (OpenAI gpt-4o-transcribe) — PC, iOS e Android
       writing/evaluate/      → avalia o texto escrito (Claude) e registra dificuldades
       report/generate/       → monta o relatório final da sessão e marca como concluída
-      tts/generate/           → gera o áudio do listening (OpenAI TTS) — PC, iOS e Android
+      tts/generate/           → gera o áudio do listening (OpenAI gpt-4o-mini-tts) — PC, iOS e Android
   components/
     ui.tsx                   → Card, Button, hooks de voz (useCloudSpeech / useAudioRecorder)
     SkillBlocks.tsx           → os 4 blocos de exercício (leitura/escuta/fala/escrita)
@@ -50,7 +50,7 @@ A chave da API da Claude (`ANTHROPIC_API_KEY`) só existe no servidor (rotas `/a
    - `ANTHROPIC_API_KEY` — sua chave da API da Anthropic (https://console.anthropic.com)
    - `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` — do passo 2
    - `OPENAI_API_KEY` — sua chave da OpenAI (https://platform.openai.com/api-keys), usada para gerar o áudio do
-     listening (TTS) e transcrever a fala do aluno (Whisper) — funciona igual em PC, iOS e Android
+     listening (TTS) e transcrever a fala do aluno (gpt-4o-transcribe) — funciona igual em PC, iOS e Android
 
 4. **Rodar localmente**
    ```bash
@@ -67,7 +67,7 @@ A chave da API da Claude (`ANTHROPIC_API_KEY`) só existe no servidor (rotas `/a
 
 O listening toca um áudio gerado no servidor pela OpenAI (TTS) via `<audio>` — a mesma voz e qualidade em qualquer
 navegador, sem depender do `speechSynthesis` do dispositivo. A fala grava o áudio do aluno com `MediaRecorder`
-(suportado em PC, iOS 14.3+ e Android) e envia para transcrição via OpenAI Whisper — não depende mais do
+(suportado em PC, iOS 14.3+ e Android) e envia para transcrição via OpenAI (gpt-4o-transcribe) — não depende mais do
 `SpeechRecognition` do navegador, que nunca existiu em nenhum navegador no iOS. Se o microfone não estiver
 disponível (permissão negada, ou acesso fora de HTTPS/localhost), o aluno pode digitar a resposta como alternativa.
 
