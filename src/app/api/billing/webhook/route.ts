@@ -23,6 +23,7 @@ export async function POST(req: Request) {
   const token = new URL(req.url).searchParams.get("t");
 
   if (!UUID.test(orderNsu) || !tx || !slug || !validWebhookToken(orderNsu, token)) {
+    console.warn("[billing/webhook] ignorado:", JSON.stringify({ campos: Object.keys(body || {}), orderNsu: UUID.test(orderNsu), tx: !!tx, slug: !!slug, token: !!token && UUID.test(orderNsu) && validWebhookToken(orderNsu, token) }));
     return NextResponse.json({ ok: false }, { status: 200 });
   }
 

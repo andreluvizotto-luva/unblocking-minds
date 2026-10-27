@@ -15,6 +15,7 @@ export async function POST(req: Request) {
   const tx = typeof body?.transaction_nsu === "string" ? body.transaction_nsu : "";
   const slug = typeof body?.slug === "string" ? body.slug : "";
   if (!UUID.test(orderNsu) || !tx || !slug) {
+    console.warn("[tuition/confirm] dados incompletos:", JSON.stringify({ campos: Object.keys(body || {}), orderNsu: UUID.test(orderNsu), tx: !!tx, slug: !!slug }));
     return NextResponse.json({ error: "Dados do pagamento incompletos." }, { status: 400 });
   }
 

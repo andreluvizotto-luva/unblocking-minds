@@ -110,8 +110,14 @@ export async function checkPayment(orderNsu: string, transactionNsu: string, slu
     headers: { "Content-Type": "application/json", ...a.headers },
     body: JSON.stringify({ ...a.handle, order_nsu: orderNsu, transaction_nsu: transactionNsu, slug }),
   });
-  if (!res.ok) throw new Error(`payment_check HTTP ${res.status}`);
-  return (await res.json()) as {
+  const text = await res.text();
+  if (!res.ok) {
+    console.error("[infinitepay] payment_check HTTP", res.status, text.slice(0, 300));
+    throw new Error(`payment_check HTTP ${res.status}`);
+  }
+  const data = JSON.parse(text || "{}");
+  if (!data?.paid) console.warn("[infinitepay] payment_check sem confirmação:", text.slice(0, 300));
+  return data as {
     success?: boolean;
     paid?: boolean;
     amount?: number;

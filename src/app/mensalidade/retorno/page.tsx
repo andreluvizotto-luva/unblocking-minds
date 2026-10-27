@@ -11,13 +11,11 @@ export default function TuitionReturnPage() {
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    const body = {
-      order_nsu: q.get("order_nsu"),
-      transaction_nsu: q.get("transaction_nsu"),
-      slug: q.get("slug"),
-      receipt_url: q.get("receipt_url"),
-    };
+    // Repassa tudo o que a InfinitePay pôs na URL: o servidor usa os campos
+    // conhecidos e registra no log quando algum faltar.
+    const body: Record<string, string> = Object.fromEntries(q.entries());
     if (!body.order_nsu || !body.transaction_nsu || !body.slug) {
+      fetch("/api/tuition/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
       setState("error");
       return;
     }
