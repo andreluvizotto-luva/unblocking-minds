@@ -52,8 +52,10 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   const kind = b.kind === "student_leadership" ? "student_leadership" : b.kind === "private_class" ? "private_class" : null;
   if (!kind) return NextResponse.json({ error: "Escolha o tipo de aluno." }, { status: 400 });
   const amount = Math.round(Number(b.amountCents));
-  if (!Number.isFinite(amount) || amount < 100 || amount > 10_000_000) {
-    return NextResponse.json({ error: "Informe um valor mensal válido." }, { status: 400 });
+  // A InfinitePay só aceita cobrança acima de R$ 1,00; com R$ 2,00 o valor
+  // com 7% de desconto ainda fica acima do mínimo.
+  if (!Number.isFinite(amount) || amount < 200 || amount > 10_000_000) {
+    return NextResponse.json({ error: "Informe um valor mensal de pelo menos R$ 2,00." }, { status: 400 });
   }
   const due = kind === "private_class" ? 10 : Number(b.dueDay) === 21 ? 21 : 10;
   const method = b.method === "auto" ? "auto" : "link";
