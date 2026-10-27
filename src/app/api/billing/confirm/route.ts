@@ -23,13 +23,16 @@ export async function POST(req: Request) {
   const orderNsu = typeof body?.order_nsu === "string" ? body.order_nsu : "";
   const tx = typeof body?.transaction_nsu === "string" ? body.transaction_nsu : "";
   const slug = typeof body?.slug === "string" ? body.slug : "";
-  if (!UUID.test(orderNsu) || !tx || !slug) {
+  // pid é o nosso id (vem na volta dos links novos); order_nsu é o da InfinitePay.
+  const pid = typeof body?.pid === "string" && UUID.test(body.pid) ? body.pid : orderNsu;
+  if (!UUID.test(pid) || !tx || !slug) {
     return NextResponse.json({ error: "Dados do pagamento incompletos." }, { status: 400 });
   }
 
   try {
     const result = await verifyAndApply({
-      paymentId: orderNsu,
+      paymentId: pid,
+      providerOrderNsu: orderNsu || undefined,
       transactionNsu: tx,
       slug,
       receiptUrl: typeof body?.receipt_url === "string" ? body.receipt_url : null,

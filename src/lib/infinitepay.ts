@@ -89,8 +89,10 @@ export async function createCheckoutLink(opts: {
       ...a.handle,
       order_nsu: opts.paymentId,
       items: [{ quantity: 1, price: opts.priceCents, description: opts.description }],
-      redirect_url: `${siteUrl()}${opts.redirectPath || "/assinatura/retorno"}`,
-      webhook_url: `${siteUrl()}/api/billing/webhook?t=${webhookToken(opts.paymentId)}`,
+      // Com a API Key, a InfinitePay troca o order_nsu pelo dela; o pid na
+      // volta e no webhook é o que liga o pagamento ao nosso registro.
+      redirect_url: `${siteUrl()}${opts.redirectPath || "/assinatura/retorno"}?pid=${opts.paymentId}`,
+      webhook_url: `${siteUrl()}/api/billing/webhook?t=${webhookToken(opts.paymentId)}&pid=${opts.paymentId}`,
       ...(Object.keys(customer).length ? { customer } : {}),
     }),
   });
@@ -168,6 +170,8 @@ export async function verifyAndApply(input: {
   receiptUrl?: string | null;
   userId?: string;
   tuitionOnly?: boolean;
+  // order_nsu que a InfinitePay devolveu (o dela, não o nosso).
+  providerOrderNsu?: string;
 }): Promise<VerifyResult> {
   const admin = supabaseAdmin();
   const { data: payment } = await admin
@@ -180,7 +184,7 @@ export async function verifyAndApply(input: {
 
   if (payment.invoice_id) {
     if (payment.status === "paid") return { state: "already_paid", accessUntil: null, invoiceId: payment.invoice_id };
-    const check = await checkPayment(payment.id, input.transactionNsu, input.slug);
+    const check = await checkPayment(input.providerOrderNsu || payment.id, input.transactionNsu, input.slug);
     if (!check.paid || (check.amount ?? 0) < payment.amount_cents) return { state: "not_paid" };
     return applyTuition(admin, { id: payment.id, invoice_id: payment.invoice_id }, input, check);
   }
@@ -190,7 +194,7 @@ export async function verifyAndApply(input: {
 
   if (payment.status === "paid") return { state: "already_paid", accessUntil: await accessUntil() };
 
-  const check = await checkPayment(payment.id, input.transactionNsu, input.slug);
+  const check = await checkPayment(input.providerOrderNsu || payment.id, input.transactionNsu, input.slug);
   if (!check.paid || (check.amount ?? 0) < payment.amount_cents) return { state: "not_paid" };
 
   const { data: until, error } = await admin.rpc("apply_payment", {

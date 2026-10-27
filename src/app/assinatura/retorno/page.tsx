@@ -15,6 +15,7 @@ export default function RetornoPage() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const body = {
+      pid: q.get("pid"),
       order_nsu: q.get("order_nsu"),
       transaction_nsu: q.get("transaction_nsu"),
       slug: q.get("slug"),

@@ -20,16 +20,21 @@ export async function POST(req: Request) {
   const orderNsu = typeof body?.order_nsu === "string" ? body.order_nsu : "";
   const tx = typeof body?.transaction_nsu === "string" ? body.transaction_nsu : "";
   const slug = typeof body?.invoice_slug === "string" ? body.invoice_slug : typeof body?.slug === "string" ? body.slug : "";
-  const token = new URL(req.url).searchParams.get("t");
+  const params = new URL(req.url).searchParams;
+  const token = params.get("t");
+  // Links novos trazem o nosso id em ?pid= (a InfinitePay troca o order_nsu);
+  // nos antigos, o order_nsu do corpo é o nosso id.
+  const pid = params.get("pid") || orderNsu;
 
-  if (!UUID.test(orderNsu) || !tx || !slug || !validWebhookToken(orderNsu, token)) {
-    console.warn("[billing/webhook] ignorado:", JSON.stringify({ campos: Object.keys(body || {}), orderNsu: UUID.test(orderNsu), tx: !!tx, slug: !!slug, token: !!token && UUID.test(orderNsu) && validWebhookToken(orderNsu, token) }));
+  if (!UUID.test(pid) || !tx || !slug || !validWebhookToken(pid, token)) {
+    console.warn("[billing/webhook] ignorado:", JSON.stringify({ campos: Object.keys(body || {}), pid: UUID.test(pid), tx: !!tx, slug: !!slug }));
     return NextResponse.json({ ok: false }, { status: 200 });
   }
 
   try {
     const result = await verifyAndApply({
-      paymentId: orderNsu,
+      paymentId: pid,
+      providerOrderNsu: orderNsu || undefined,
       transactionNsu: tx,
       slug,
       receiptUrl: typeof body?.receipt_url === "string" ? body.receipt_url : null,
