@@ -41,10 +41,16 @@ export function siteUrl() {
   return (process.env.NEXT_PUBLIC_SITE_URL || "https://maisunblocking.com.br").replace(/\/$/, "");
 }
 
-function handle() {
+// Autenticação: com INFINITEPAY_API_KEY, a chave do Checkout Integrado vai no
+// cabeçalho x-api-key e identifica a conta, então o corpo NÃO leva o handle
+// (a InfinitePay recusa com 403 se vierem os dois). Sem a chave, cai no modo
+// antigo, só com o handle (InfiniteTag) no corpo.
+function auth(): { headers: Record<string, string>; handle: { handle: string } | Record<string, never> } {
+  const key = (process.env.INFINITEPAY_API_KEY || "").trim();
+  if (key) return { headers: { "x-api-key": key }, handle: {} };
   const h = (process.env.INFINITEPAY_HANDLE || "").replace(/^\$/, "");
-  if (!h) throw new Error("INFINITEPAY_HANDLE não configurado");
-  return h;
+  if (!h) throw new Error("INFINITEPAY_API_KEY e INFINITEPAY_HANDLE não configurados");
+  return { headers: {}, handle: { handle: h } };
 }
 
 // O webhook da InfinitePay não é assinado. O token na URL só serve para
@@ -75,11 +81,12 @@ export async function createCheckoutLink(opts: {
   if (opts.customer.email) customer.email = opts.customer.email;
   if (opts.customer.phone) customer.phone_number = opts.customer.phone;
 
+  const a = auth();
   const res = await fetch(`${API}/links`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...a.headers },
     body: JSON.stringify({
-      handle: handle(),
+      ...a.handle,
       order_nsu: opts.paymentId,
       items: [{ quantity: 1, price: opts.priceCents, description: opts.description }],
       redirect_url: `${siteUrl()}${opts.redirectPath || "/assinatura/retorno"}`,
@@ -97,10 +104,11 @@ export async function createCheckoutLink(opts: {
 }
 
 export async function checkPayment(orderNsu: string, transactionNsu: string, slug: string) {
+  const a = auth();
   const res = await fetch(`${API}/payment_check`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ handle: handle(), order_nsu: orderNsu, transaction_nsu: transactionNsu, slug }),
+    headers: { "Content-Type": "application/json", ...a.headers },
+    body: JSON.stringify({ ...a.handle, order_nsu: orderNsu, transaction_nsu: transactionNsu, slug }),
   });
   if (!res.ok) throw new Error(`payment_check HTTP ${res.status}`);
   return (await res.json()) as {
