@@ -15,6 +15,7 @@
   --card: #ffffff;
   --muted: #6b6660; /* texto secundário sobre cartões claros */
   --muted-on-dark: #b6bad8; /* texto secundário direto sobre o navy */
+  --paper-deep: #1f2b4a; /* azul mais fundo — cartões escuros sobre o fundo principal (ex: conquistas) */
   --mustard-dark: #8a5c08; /* dourado escurecido — única variante de --mustard com contraste AA (4.5:1) para texto pequeno sobre fundo claro */
 }
 
@@ -74,4 +75,75 @@ button {
 ::selection {
   background: var(--teal);
   color: var(--ink);
+}
+
+/* Tema sazonal de Halloween — ligado por data em src/lib/tema-sazonal.ts, que
+   marca o <html> com data-tema="halloween". Só troca os tokens de cor: fora da
+   janela o app volta à paleta da marca sem nenhuma outra mudança. */
+html[data-tema="halloween"] {
+  --paper: #1c1233; /* roxo-noite no lugar do azul-marinho */
+  --paper-deep: #130b24;
+  --ink: #1d1030;
+  --ink-on-dark: #f6efe6;
+  --teal: #ff7a1a; /* laranja-abóbora nas ações primárias */
+  --mustard-bright: #b5f23d; /* verde-limão nos títulos em fonte script */
+  --sage: #3d2a63; /* blocos de "ritual consciente" ficam roxos */
+  --coral: #ff6b9a;
+  --muted-on-dark: #c4b5fd;
+  --line-on-dark: rgba(246, 239, 230, 0.2);
+  --card: #fff9f0;
+}
+
+/* Enfeite do topo. Absoluto (rola junto com a página) e sem captura de toque. */
+.hw-deco {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 150px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+.hw-glow {
+  position: absolute;
+  right: -60px;
+  top: -70px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 170, 60, 0.34), rgba(255, 122, 26, 0.12) 45%, transparent 70%);
+}
+.hw-web {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 130px;
+  height: 130px;
+}
+.hw-bat {
+  position: absolute;
+  left: -50px;
+  fill: #0d0618;
+  animation: hwVoo 16s linear infinite;
+}
+.hw-bat-0 { top: 30px; width: 34px; }
+.hw-bat-1 { top: 78px; width: 24px; animation-duration: 20s; animation-delay: -7s; }
+.hw-bat-2 { top: 12px; width: 20px; animation-duration: 24s; animation-delay: -13s; }
+
+/* Voo em ondas pela largura da tela; o scaleY imita o bater de asas. */
+@keyframes hwVoo {
+  0% { transform: translate(0, 0) scaleY(1); }
+  12% { transform: translate(14vw, -10px) scaleY(0.7); }
+  25% { transform: translate(28vw, 6px) scaleY(1); }
+  37% { transform: translate(42vw, -8px) scaleY(0.7); }
+  50% { transform: translate(56vw, 10px) scaleY(1); }
+  62% { transform: translate(70vw, -6px) scaleY(0.7); }
+  100% { transform: translate(115vw, 4px) scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hw-bat { animation: none; }
+  .hw-bat-0 { left: 60%; }
+  .hw-bat-1 { left: 78%; }
+  .hw-bat-2 { left: 40%; }
 }

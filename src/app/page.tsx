@@ -23,6 +23,8 @@ import { FirstAccessTour, tourKey } from "@/components/FirstAccessTour";
 import { ShareResultButton } from "@/components/ShareResultCard";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
 import { getQuoteOfDay } from "@/lib/quotes";
+import { Abobora, useTemaSazonal } from "@/components/TemaSazonal";
+import { ASSUNTO_HALLOWEEN } from "@/lib/tema-sazonal";
 
 const LEVEL_LABELS: Record<string, string> = {
   A1: "Iniciante",
@@ -303,6 +305,14 @@ export default function HomePage() {
   const [guide, setGuide] = useState(false);
   const quote = React.useMemo(() => getQuoteOfDay(), []);
   const greeting = React.useMemo(() => pickGreeting(new Date().getHours()), []);
+  // Tema sazonal (Halloween): decidido no navegador, por data. Ver src/lib/tema-sazonal.ts.
+  const tema = useTemaSazonal();
+  const halloweenEscolhido = topicKind === "custom" && customTopic === ASSUNTO_HALLOWEEN;
+  // Atalho do Halloween: usa o tema livre que já existe, sem mexer na geração da aula.
+  const escolherHalloween = () => {
+    setTopicKind("custom");
+    setCustomTopic(ASSUNTO_HALLOWEEN);
+  };
 
   // O atalho "Treinar …" do Perfil chega aqui com ?format=, já com o formato
   // da aula escolhido. Lido via window (sem useSearchParams, que exigiria
@@ -557,7 +567,7 @@ export default function HomePage() {
   if (stage === "session" && content && sessionId) {
     return (
       <div style={{ minHeight: "100vh" }}>
-        <div style={{ background: "#283758", padding: "44px 20px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ background: "var(--paper)", padding: "44px 20px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ maxWidth: 640, margin: "0 auto", width: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
               <Lockup size={18} />
@@ -687,15 +697,16 @@ export default function HomePage() {
   return (
     <div style={{ minHeight: "100vh", padding: "24px 16px 100px" }}>
       <div style={{ maxWidth: 640, margin: "0 auto", color: "var(--ink-on-dark)" }}>
-        <div style={{ marginBottom: stage === "setup" ? 18 : 22 }}>
+        <div style={{ marginBottom: stage === "setup" ? 18 : 22, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <Lockup size={20} />
+          {tema === "halloween" && <Abobora />}
         </div>
 
         {stage === "setup" && (
           <div>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 14 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 14, color: "var(--muted-on-dark)" }}>{greeting},</span>
+                <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 14, color: "var(--muted-on-dark)" }}>{tema === "halloween" ? "Happy Halloween" : greeting},</span>
                 <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 24, lineHeight: 1.15, fontWeight: 600, letterSpacing: "-0.01em" }}>
                   {studentName ? studentName.split(" ")[0] : "friend"}
                 </span>
@@ -731,13 +742,50 @@ export default function HomePage() {
                 </div>
               </div>
               {achievements.length > 0 && (
-                <Card className="fade-in-up" style={{ marginTop: 4, background: "#1f2b4a", border: "1px solid var(--line-on-dark)", color: "var(--ink-on-dark)" }}>
+                <Card className="fade-in-up" style={{ marginTop: 4, background: "var(--paper-deep)", border: "1px solid var(--line-on-dark)", color: "var(--ink-on-dark)" }}>
                   <AchievementStrip achievements={achievements} nextAchievement={nextAchievement} onDark />
                 </Card>
               )}
             </div>
 
             <BillingBanner />
+
+            {tema === "halloween" && (
+              <div
+                className="fade-in-up"
+                style={{
+                  marginBottom: 16,
+                  borderRadius: 16,
+                  padding: "14px 16px",
+                  background: "linear-gradient(135deg, rgba(255,122,26,.22), rgba(139,92,246,.28))",
+                  border: "1px solid rgba(255,122,26,.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 14.5, fontWeight: 600, marginBottom: 2 }}>Aula especial de Halloween</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.4, color: "var(--ink-on-dark)" }}>Tradições e histórias de arrepiar, no seu nível.</div>
+                </div>
+                <button
+                  onClick={escolherHalloween}
+                  style={{
+                    flexShrink: 0,
+                    cursor: "pointer",
+                    border: "none",
+                    borderRadius: 999,
+                    padding: "10px 14px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    background: "var(--teal)",
+                    color: "var(--ink)",
+                  }}
+                >
+                  {halloweenEscolhido ? "Tema escolhido" : "Praticar"}
+                </button>
+              </div>
+            )}
 
             <Card id="tour-topic" style={{ marginBottom: 16, scrollMarginTop: 16 }}>
               <SectionHeading>Assunto de hoje</SectionHeading>
@@ -771,6 +819,27 @@ export default function HomePage() {
                     </button>
                   );
                 })}
+                {tema === "halloween" && (
+                  <button
+                    onClick={escolherHalloween}
+                    style={{
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      borderRadius: 20,
+                      padding: "8px 14px 8px 12px",
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                      border: halloweenEscolhido ? "1px solid var(--teal)" : "1px dashed #b4541a",
+                      background: halloweenEscolhido ? "var(--teal)" : "#fff0dc",
+                      color: "var(--ink)",
+                    }}
+                  >
+                    <Abobora size={16} />
+                    Halloween
+                  </button>
+                )}
               </div>
               {topicKind === "custom" && (
                 <div style={{ marginTop: 12 }}>
@@ -1170,7 +1239,7 @@ function ReportView({ loading, report, topic, level, onRestart, log, sessionId, 
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <div style={{ background: "#283758", padding: "44px 22px 30px", display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ background: "var(--paper)", padding: "44px 22px 30px", display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ maxWidth: 640, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", gap: 18 }}>
           <Lockup size={18} />
           <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--mustard-bright)" }}>

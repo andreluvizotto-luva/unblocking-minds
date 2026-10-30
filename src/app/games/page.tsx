@@ -132,7 +132,7 @@ export default function GamesPage() {
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <div style={{ background: "#283758", padding: "44px 20px 22px" }}>
+      <div style={{ background: "var(--paper)", padding: "44px 20px 22px" }}>
         <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <Lockup size={18} />
