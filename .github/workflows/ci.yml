@@ -1,0 +1,48 @@
+# CI: confere tipos e build a cada PR e a cada push na main.
+# Não há testes automatizados (ver CLAUDE.md), então o tsc e o next build são a
+# rede de segurança. O build é o que pega erros que o `next dev` esconde
+# (ex.: o CSP com nonce que quebrou a produção).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Valores falsos: o build pré-renderiza páginas que criam o cliente do
+    # Supabase e ele exige URL e chave para existir. Nenhuma chamada real é
+    # feita no build; as chaves de verdade ficam só na Vercel.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      NEXT_PUBLIC_SITE_URL: https://maisunblocking.com.br
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      # Mesma versão maior de Node da Vercel (24.x).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Gera os tipos das rotas (next-env.d.ts fica fora do git); sem isso o tsc
+      # não conhece a opção `next` do fetch.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
