@@ -96,7 +96,7 @@ relatório e marca a aula como `completed`.
 `/api/session/pending`, `/progress`, `/discard`.
 
 **Áudio.** A escuta usa OpenAI TTS (`gpt-4o-mini-tts`) via `/api/tts/generate` (mp3 → blob → `<audio>`), não o
-`speechSynthesis` do navegador. A fala grava com `MediaRecorder` e transcreve com `gpt-4o-transcribe`.
+`speechSynthesis` do navegador. A fala grava com `MediaRecorder` e transcreve com `gpt-transcribe`.
 Motivo: o iOS nunca teve `SpeechRecognition`, e as vozes do `speechSynthesis` variam demais
 entre dispositivos. Os dois modelos estão descontinuados pela OpenAI (desligam em 06/01/2027
 e 26/02/2027) — ver o PR da migração para o que fazer depois. **O áudio é regenerado a cada montagem do bloco** (`Cache-Control:
