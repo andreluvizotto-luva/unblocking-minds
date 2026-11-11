@@ -19,7 +19,11 @@ npm run build                        # só isto pega erros que o dev esconde (ve
 ```
 
 Não há testes automatizados. O `tsc --noEmit` é a única rede de segurança automática —
-rode sempre, e espere `EXIT:0`.
+rode sempre, e espere `EXIT:0`. Num clone novo (sem `next-env.d.ts`, que fica fora do git)
+use `npm run typecheck`, que gera os tipos das rotas antes do `tsc`.
+
+O GitHub Actions (`.github/workflows/ci.yml`) roda `npm run typecheck` e `npm run build`
+em todo PR e em todo push na `main`, com Node 24 como a Vercel.
 
 ---
 
