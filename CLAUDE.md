@@ -100,10 +100,10 @@ relatório e marca a aula como `completed`.
 `/api/session/pending`, `/progress`, `/discard`.
 
 **Áudio.** A escuta usa OpenAI TTS (`gpt-4o-mini-tts`) via `/api/tts/generate` (mp3 → blob → `<audio>`), não o
-`speechSynthesis` do navegador. A fala grava com `MediaRecorder` e transcreve com `gpt-4o-transcribe`.
+`speechSynthesis` do navegador. A fala grava com `MediaRecorder` e transcreve com `gpt-transcribe`.
 Motivo: o iOS nunca teve `SpeechRecognition`, e as vozes do `speechSynthesis` variam demais
-entre dispositivos. Os dois modelos estão descontinuados pela OpenAI (desligam em 06/01/2027
-e 26/02/2027) — ver o PR da migração para o que fazer depois. **O áudio é regenerado a cada montagem do bloco** (`Cache-Control:
+entre dispositivos. O `gpt-4o-mini-tts` está descontinuado pela OpenAI (desliga em
+06/01/2027) e a voz nova só existe na Realtime API: a rota de TTS precisa ser revista até lá. **O áudio é regenerado a cada montagem do bloco** (`Cache-Control:
 no-store`) — desperdício conhecido, resolvê-lo exige Supabase Storage.
 
 **Custo.** `src/lib/claude.ts` centraliza as chamadas à Claude e registra cada uma em

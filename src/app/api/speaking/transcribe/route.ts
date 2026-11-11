@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { requireActiveUser } from "@/lib/require-active-user";
 
-// Transcreve o áudio gravado no bloco de Fala via OpenAI (gpt-4o-transcribe;
-// antes era o whisper-1).
+// Transcreve o áudio gravado no bloco de Fala via OpenAI (gpt-transcribe;
+// antes foram o whisper-1 e o gpt-4o-transcribe).
 // Substitui a antiga SpeechRecognition do navegador — que simplesmente não
 // existe em nenhum navegador no iOS — por gravação de áudio (MediaRecorder,
 // suportado em PC, iOS e Android) enviada aqui para virar texto.
@@ -39,15 +39,17 @@ export async function POST(req: Request) {
   const filename = (audio as any).name || "speech.webm";
   const forwardForm = new FormData();
   forwardForm.append("file", audio, filename);
-  // gpt-4o-transcribe erra menos que o whisper-1, mas é um modelo de linguagem:
-  // tende a "arrumar" a frase. Aqui a transcrição é usada para conferir a
-  // pronúncia e a gramática do aluno (compareSpoken e /api/speaking/evaluate),
-  // então uma frase corrigida daria nota alta para um erro real — daí o prompt
-  // pedindo transcrição literal. Só aceita response_format "json" (o padrão),
-  // que continua devolvendo { text }. Também está descontinuado pela OpenAI
-  // (desligamento em 26/02/2027); o sucessor é o gpt-transcribe.
-  forwardForm.append("model", "gpt-4o-transcribe");
-  forwardForm.append("language", "en");
+  // gpt-transcribe é o modelo que a OpenAI recomenda hoje para áudio gravado e
+  // substitui o gpt-4o-transcribe (desligamento em 26/02/2027). Como o anterior,
+  // é um modelo de linguagem e tende a "arrumar" a frase. Aqui a transcrição é
+  // usada para conferir a pronúncia e a gramática do aluno (compareSpoken e
+  // /api/speaking/evaluate), então uma frase corrigida daria nota alta para um
+  // erro real — daí o prompt pedindo transcrição literal. A resposta continua
+  // vindo em JSON com { text } (e agora também { languages }, que ignoramos).
+  // Atenção: no gpt-transcribe o idioma vai em "languages[]" (lista); o campo
+  // singular "language" foi substituído e não deve ser enviado junto.
+  forwardForm.append("model", "gpt-transcribe");
+  forwardForm.append("languages[]", "en");
   forwardForm.append(
     "prompt",
     "An English learner speaking. Transcribe exactly what is said, word for word, keeping grammar mistakes, " +
