@@ -1,21 +1,46 @@
-// Tema sazonal do app (hoje só Halloween). A decisão é feita no NAVEGADOR,
-// nunca no servidor: as páginas são pré-renderizadas estaticamente, então uma
-// data lida no servidor ficaria congelada no dia do build.
+// Temas sazonais do app. A decisão é feita no NAVEGADOR, nunca no servidor: as
+// páginas são pré-renderizadas estaticamente, então uma data lida no servidor
+// ficaria congelada no dia do build.
 //
-// O tema liga e desliga sozinho pela data (fuso de São Paulo), sem novo deploy.
-// Para testar fora da janela: abra qualquer tela com ?tema=halloween (liga) ou
-// ?tema=normal (desliga).
-export type TemaSazonal = "halloween" | null;
+// Cada tema liga e desliga sozinho pela data (fuso de São Paulo), sem novo
+// deploy. Para testar fora da janela: abra qualquer tela com ?tema=<id> (liga)
+// ou ?tema=normal (desliga).
+export type TemaSazonal = "halloween" | "thanksgiving" | null;
 
-// Janela do Halloween de 2026: liga em 30/10 e volta ao layout original
-// sozinho em 02/11 (a data de volta é exclusiva: 01/11 ainda é Halloween).
-const HALLOWEEN_INICIO = "2026-10-30";
-const HALLOWEEN_VOLTA_AO_NORMAL = "2026-11-02";
+type TemaConfig = {
+  inicio: string; // "AAAA-MM-DD", inclusivo, a partir de 00:00
+  volta: string; // "AAAA-MM-DD", exclusivo: neste dia o layout original volta
+  // Assunto pré-preenchido pelo atalho da tela inicial. Usa o fluxo de tema
+  // livre que já existe (até 140 caracteres), então a geração da aula não muda.
+  assunto: string;
+  saudacao: string;
+  rotulo: string;
+  titulo: string;
+  descricao: string;
+};
 
-// Assunto pré-preenchido pelo atalho "Halloween" da tela inicial. Usa o fluxo
-// de tema livre que já existe (até CUSTOM_TOPIC_MAX = 140 caracteres), então a
-// geração da aula não muda.
-export const ASSUNTO_HALLOWEEN = "Halloween: traditions, costumes and spooky stories";
+export const TEMAS: Record<Exclude<TemaSazonal, null>, TemaConfig> = {
+  halloween: {
+    inicio: "2026-10-30",
+    volta: "2026-11-02",
+    assunto: "Halloween: traditions, costumes and spooky stories",
+    saudacao: "Happy Halloween",
+    rotulo: "Halloween",
+    titulo: "Aula especial de Halloween",
+    descricao: "Tradições e histórias de arrepiar, no seu nível.",
+  },
+  // Thanksgiving 2026 cai na quinta, 26/11. Liga à meia-noite de 24/11 e
+  // fica até domingo, 29/11.
+  thanksgiving: {
+    inicio: "2026-11-24",
+    volta: "2026-11-30",
+    assunto: "Thanksgiving: traditions, family dinner and gratitude",
+    saudacao: "Happy Thanksgiving",
+    rotulo: "Thanksgiving",
+    titulo: "Aula especial de Thanksgiving",
+    descricao: "Tradições, a ceia em família e o vocabulário da gratidão, no seu nível.",
+  },
+};
 
 // "AAAA-MM-DD" no fuso de São Paulo. O formato en-CA já sai nesse padrão e
 // permite comparar as datas como texto.
@@ -29,8 +54,11 @@ function dataEmSaoPaulo(d: Date): string {
 }
 
 export function temaDoDia(d: Date = new Date(), forcado?: string | null): TemaSazonal {
-  if (forcado === "halloween") return "halloween";
   if (forcado === "normal") return null;
+  if (forcado && forcado in TEMAS) return forcado as TemaSazonal;
   const hoje = dataEmSaoPaulo(d);
-  return hoje >= HALLOWEEN_INICIO && hoje < HALLOWEEN_VOLTA_AO_NORMAL ? "halloween" : null;
+  for (const [id, t] of Object.entries(TEMAS)) {
+    if (hoje >= t.inicio && hoje < t.volta) return id as TemaSazonal;
+  }
+  return null;
 }

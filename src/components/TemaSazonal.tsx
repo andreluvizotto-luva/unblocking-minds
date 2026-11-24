@@ -67,6 +67,41 @@ function DecoracaoHalloween() {
   );
 }
 
+// Folha de bordo estilizada, usada no tema de Thanksgiving.
+const FOLHA =
+  "M32 2L36 14 46 9 43 22 56 20 49 31 60 36 47 40 50 52 38 46 34 58H30L26 46 14 52 17 40 4 36 15 31 8 20 21 22 18 9 28 14Z";
+
+export function Folha({ size = 36, color = "#e0701e" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d={FOLHA} fill={color} stroke="#9c3f0f" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M32 58V24" stroke="#9c3f0f" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+// Ícone do tema ao lado do logotipo e no atalho de assunto.
+export function IconeTema({ tema, size = 36 }: { tema: Tema; size?: number }) {
+  if (tema === "halloween") return <Abobora size={size} />;
+  if (tema === "thanksgiving") return <Folha size={size} />;
+  return null;
+}
+
+// Folhas de outono caindo devagar, só na faixa do topo.
+function DecoracaoThanksgiving() {
+  const cores = ["#e0701e", "#c2410c", "#d99a1e", "#a53a17", "#e8a33a"];
+  return (
+    <div className="hw-deco" aria-hidden="true">
+      <div className="tg-glow" />
+      {cores.map((c, i) => (
+        <svg key={i} className={"tg-leaf tg-leaf-" + i} viewBox="0 0 64 64">
+          <path d={FOLHA} fill={c} />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
 // Montado uma vez no layout: marca o <html> com data-tema (os tokens de cor
 // mudam em globals.css) e desenha o enfeite.
 export default function TemaSazonal() {
@@ -79,5 +114,7 @@ export default function TemaSazonal() {
       delete el.dataset.tema;
     };
   }, [tema]);
-  return tema === "halloween" ? <DecoracaoHalloween /> : null;
+  if (tema === "halloween") return <DecoracaoHalloween />;
+  if (tema === "thanksgiving") return <DecoracaoThanksgiving />;
+  return null;
 }

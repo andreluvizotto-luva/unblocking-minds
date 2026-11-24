@@ -94,6 +94,54 @@ html[data-tema="halloween"] {
   --card: #fff9f0;
 }
 
+/* Tema sazonal de Thanksgiving: paleta de outono (castanho, abóbora, dourado). */
+html[data-tema="thanksgiving"] {
+  --paper: #3b1f17; /* marrom-castanho no lugar do azul-marinho */
+  --paper-deep: #2a140e;
+  --ink: #2a1610;
+  --ink-on-dark: #fbf1e3;
+  --teal: #e8892b; /* abóbora nas ações primárias */
+  --mustard-bright: #f2c14e; /* dourado de milho nos títulos em fonte script */
+  --sage: #5c6b2f; /* oliva-outono nos blocos de "ritual consciente" */
+  --coral: #d9583b;
+  --muted-on-dark: #e9c9a6;
+  --line-on-dark: rgba(251, 241, 227, 0.2);
+  --card: #fffaf2;
+}
+.tg-glow {
+  position: absolute;
+  right: -60px;
+  top: -70px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(242, 193, 78, 0.3), rgba(232, 137, 43, 0.12) 45%, transparent 70%);
+}
+.tg-leaf {
+  position: absolute;
+  top: -30px;
+  width: 22px;
+  opacity: 0.9;
+  animation: tgQueda 14s linear infinite;
+}
+.tg-leaf-0 { left: 8%; }
+.tg-leaf-1 { left: 28%; width: 16px; animation-duration: 18s; animation-delay: -6s; }
+.tg-leaf-2 { left: 52%; width: 26px; animation-duration: 16s; animation-delay: -11s; }
+.tg-leaf-3 { left: 72%; width: 18px; animation-duration: 20s; animation-delay: -3s; }
+.tg-leaf-4 { left: 90%; width: 20px; animation-duration: 15s; animation-delay: -9s; }
+
+/* Queda em zigue-zague, girando, até sumir no fim da faixa do topo. */
+@keyframes tgQueda {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.9; }
+  50% { transform: translate(-18px, 90px) rotate(160deg); }
+  90% { opacity: 0.85; }
+  100% { transform: translate(14px, 180px) rotate(320deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tg-leaf { animation: none; top: 18px; }
+}
+
 /* Enfeite do topo. Absoluto (rola junto com a página) e sem captura de toque. */
 .hw-deco {
   position: absolute;

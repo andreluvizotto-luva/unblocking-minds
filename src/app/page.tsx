@@ -23,8 +23,8 @@ import { FirstAccessTour, tourKey } from "@/components/FirstAccessTour";
 import { ShareResultButton } from "@/components/ShareResultCard";
 import { AchievementStrip, type AchievementItem } from "@/components/Gamification";
 import { getQuoteOfDay } from "@/lib/quotes";
-import { Abobora, useTemaSazonal } from "@/components/TemaSazonal";
-import { ASSUNTO_HALLOWEEN } from "@/lib/tema-sazonal";
+import { IconeTema, useTemaSazonal } from "@/components/TemaSazonal";
+import { TEMAS } from "@/lib/tema-sazonal";
 
 const LEVEL_LABELS: Record<string, string> = {
   A1: "Iniciante",
@@ -305,13 +305,16 @@ export default function HomePage() {
   const [guide, setGuide] = useState(false);
   const quote = React.useMemo(() => getQuoteOfDay(), []);
   const greeting = React.useMemo(() => pickGreeting(new Date().getHours()), []);
-  // Tema sazonal (Halloween): decidido no navegador, por data. Ver src/lib/tema-sazonal.ts.
+  // Tema sazonal (Halloween, Thanksgiving...): decidido no navegador, por data.
+  // Ver src/lib/tema-sazonal.ts.
   const tema = useTemaSazonal();
-  const halloweenEscolhido = topicKind === "custom" && customTopic === ASSUNTO_HALLOWEEN;
-  // Atalho do Halloween: usa o tema livre que já existe, sem mexer na geração da aula.
-  const escolherHalloween = () => {
+  const temaCfg = tema ? TEMAS[tema] : null;
+  const temaEscolhido = !!temaCfg && topicKind === "custom" && customTopic === temaCfg.assunto;
+  // Atalho da aula especial: usa o tema livre que já existe, sem mexer na geração da aula.
+  const escolherTema = () => {
+    if (!temaCfg) return;
     setTopicKind("custom");
-    setCustomTopic(ASSUNTO_HALLOWEEN);
+    setCustomTopic(temaCfg.assunto);
   };
 
   // O atalho "Treinar …" do Perfil chega aqui com ?format=, já com o formato
@@ -699,14 +702,14 @@ export default function HomePage() {
       <div style={{ maxWidth: 640, margin: "0 auto", color: "var(--ink-on-dark)" }}>
         <div style={{ marginBottom: stage === "setup" ? 18 : 22, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <Lockup size={20} />
-          {tema === "halloween" && <Abobora />}
+          <IconeTema tema={tema} />
         </div>
 
         {stage === "setup" && (
           <div>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 14 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 14, color: "var(--muted-on-dark)" }}>{tema === "halloween" ? "Happy Halloween" : greeting},</span>
+                <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 14, color: "var(--muted-on-dark)" }}>{temaCfg ? temaCfg.saudacao : greeting},</span>
                 <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 24, lineHeight: 1.15, fontWeight: 600, letterSpacing: "-0.01em" }}>
                   {studentName ? studentName.split(" ")[0] : "friend"}
                 </span>
@@ -750,26 +753,29 @@ export default function HomePage() {
 
             <BillingBanner />
 
-            {tema === "halloween" && (
+            {temaCfg && (
               <div
                 className="fade-in-up"
                 style={{
                   marginBottom: 16,
                   borderRadius: 16,
                   padding: "14px 16px",
-                  background: "linear-gradient(135deg, rgba(255,122,26,.22), rgba(139,92,246,.28))",
-                  border: "1px solid rgba(255,122,26,.5)",
+                  background:
+                    tema === "halloween"
+                      ? "linear-gradient(135deg, rgba(255,122,26,.22), rgba(139,92,246,.28))"
+                      : "linear-gradient(135deg, rgba(232,137,43,.26), rgba(242,193,78,.18))",
+                  border: tema === "halloween" ? "1px solid rgba(255,122,26,.5)" : "1px solid rgba(232,137,43,.55)",
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 14.5, fontWeight: 600, marginBottom: 2 }}>Aula especial de Halloween</div>
-                  <div style={{ fontSize: 13, lineHeight: 1.4, color: "var(--ink-on-dark)" }}>Tradições e histórias de arrepiar, no seu nível.</div>
+                  <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 14.5, fontWeight: 600, marginBottom: 2 }}>{temaCfg.titulo}</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.4, color: "var(--ink-on-dark)" }}>{temaCfg.descricao}</div>
                 </div>
                 <button
-                  onClick={escolherHalloween}
+                  onClick={escolherTema}
                   style={{
                     flexShrink: 0,
                     cursor: "pointer",
@@ -782,7 +788,7 @@ export default function HomePage() {
                     color: "var(--ink)",
                   }}
                 >
-                  {halloweenEscolhido ? "Tema escolhido" : "Praticar"}
+                  {temaEscolhido ? "Tema escolhido" : "Praticar"}
                 </button>
               </div>
             )}
@@ -819,9 +825,9 @@ export default function HomePage() {
                     </button>
                   );
                 })}
-                {tema === "halloween" && (
+                {temaCfg && (
                   <button
-                    onClick={escolherHalloween}
+                    onClick={escolherTema}
                     style={{
                       cursor: "pointer",
                       display: "flex",
@@ -831,13 +837,13 @@ export default function HomePage() {
                       padding: "8px 14px 8px 12px",
                       fontSize: 13.5,
                       fontWeight: 600,
-                      border: halloweenEscolhido ? "1px solid var(--teal)" : "1px dashed #b4541a",
-                      background: halloweenEscolhido ? "var(--teal)" : "#fff0dc",
+                      border: temaEscolhido ? "1px solid var(--teal)" : "1px dashed #b4541a",
+                      background: temaEscolhido ? "var(--teal)" : "#fff0dc",
                       color: "var(--ink)",
                     }}
                   >
-                    <Abobora size={16} />
-                    Halloween
+                    <IconeTema tema={tema} size={16} />
+                    {temaCfg.rotulo}
                   </button>
                 )}
               </div>
