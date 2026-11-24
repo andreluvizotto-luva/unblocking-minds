@@ -67,15 +67,19 @@ function DecoracaoHalloween() {
   );
 }
 
-// Folha de bordo estilizada, usada no tema de Thanksgiving.
+// Folha de plátano, usada no tema de Thanksgiving: cinco lobos largos e
+// triangulares, recortes rasos, base reta, alguns dentes na borda e cabinho.
 const FOLHA =
-  "M32 2L36 14 46 9 43 22 56 20 49 31 60 36 47 40 50 52 38 46 34 58H30L26 46 14 52 17 40 4 36 15 31 8 20 21 22 18 9 28 14Z";
+  "M32 47C35 47 39 48 43 48L47 46 52 45 55 42 61 39 56 36 54 32 57 27 56 21 58 13 51 15 47 19 44 20 42 25 41 18 39 11 32 2 25 11 23 18 22 25 20 20 17 19 13 15 6 13 8 21 7 27 10 32 8 36 3 39 9 42 12 45 17 46 21 48C25 48 29 47 32 47Z";
+const NERVURAS = "M32 47V8M32 40L54 17M32 40L57 39M32 40L10 17M32 40L7 39";
+const CABINHO = "M32 47Q33 55 30 62";
 
-export function Folha({ size = 36, color = "#e0701e" }: { size?: number; color?: string }) {
+export function Folha({ size = 36, color = "#d29a3c" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <path d={FOLHA} fill={color} stroke="#9c3f0f" strokeWidth="1.5" strokeLinejoin="round" />
-      <path d="M32 58V24" stroke="#9c3f0f" strokeWidth="1.5" />
+      <path d={CABINHO} fill="none" stroke="#7a4f1e" strokeWidth="2" strokeLinecap="round" />
+      <path d={FOLHA} fill={color} stroke="#8a5a1c" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d={NERVURAS} fill="none" stroke="#8a5a1c" strokeWidth="1.2" strokeLinecap="round" opacity="0.75" />
     </svg>
   );
 }
@@ -89,13 +93,16 @@ export function IconeTema({ tema, size = 36 }: { tema: Tema; size?: number }) {
 
 // Folhas de outono caindo devagar, só na faixa do topo.
 function DecoracaoThanksgiving() {
-  const cores = ["#e0701e", "#c2410c", "#d99a1e", "#a53a17", "#e8a33a"];
+  // Tons do plátano no outono: do amarelo-ocre ao marrom-dourado.
+  const cores = ["#d9a441", "#c4862e", "#e3b955", "#b06f2a", "#cf9a3a"];
   return (
     <div className="hw-deco" aria-hidden="true">
       <div className="tg-glow" />
       {cores.map((c, i) => (
         <svg key={i} className={"tg-leaf tg-leaf-" + i} viewBox="0 0 64 64">
+          <path d={CABINHO} fill="none" stroke="#7a4f1e" strokeWidth="2" strokeLinecap="round" />
           <path d={FOLHA} fill={c} />
+          <path d={NERVURAS} fill="none" stroke="#7a4f1e" strokeWidth="1.4" opacity="0.55" />
         </svg>
       ))}
     </div>
