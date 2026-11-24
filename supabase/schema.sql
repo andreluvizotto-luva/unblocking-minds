@@ -649,3 +649,23 @@ grant select, insert, update, delete on
 to service_role;
 
 grant usage, select on all sequences in schema public to anon, authenticated, service_role;
+
+-- ---------------------------------------------------------------- Funções de gatilho fechadas
+-- Mesmo conteúdo de Claude outputs/endurecer-funcoes-gatilho.sql. As funções de gatilho são
+-- SECURITY DEFINER e não devem aparecer como RPC na Data API para anon/authenticated; o gatilho
+-- continua disparando (EXECUTE não é checado no disparo). search_path fixo evita que um objeto
+-- de mesmo nome em outro schema seja usado no lugar do de public.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.protect_admin_only_profile_fields() from public, anon, authenticated;
+alter function public.handle_new_user() set search_path = public, pg_temp;
+alter function public.protect_admin_only_profile_fields() set search_path = public, pg_temp;
+
+-- rls_auto_enable é criado pelo próprio Supabase, não por este arquivo; só é tocado se existir.
+do $$
+begin
+  if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname = 'rls_auto_enable') then
+    execute 'revoke execute on function public.rls_auto_enable() from public, anon, authenticated';
+  end if;
+end;
+$$;
