@@ -51,6 +51,8 @@ A chave da API da Claude (`ANTHROPIC_API_KEY`) só existe no servidor (rotas `/a
    - `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` — do passo 2
    - `OPENAI_API_KEY` — sua chave da OpenAI (https://platform.openai.com/api-keys), usada para gerar o áudio do
      listening (TTS) e transcrever a fala do aluno (gpt-transcribe) — funciona igual em PC, iOS e Android
+   - `GOOGLE_TTS_API_KEY` — opcional por enquanto: quando preenchida, a voz do listening passa a ser gerada no
+     Google Cloud Text-to-Speech (a OpenAI desliga o `gpt-4o-mini-tts` em 06/01/2027)
 
 4. **Rodar localmente**
    ```bash
@@ -65,7 +67,8 @@ A chave da API da Claude (`ANTHROPIC_API_KEY`) só existe no servidor (rotas `/a
 
 ## Listening e Fala — solução multiplataforma (PC, iOS, Android)
 
-O listening toca um áudio gerado no servidor pela OpenAI (TTS) via `<audio>` — a mesma voz e qualidade em qualquer
+O listening toca um áudio gerado no servidor (Google Cloud Text-to-Speech quando `GOOGLE_TTS_API_KEY` está
+configurada; senão OpenAI `gpt-4o-mini-tts`) via `<audio>` — a mesma voz e qualidade em qualquer
 navegador, sem depender do `speechSynthesis` do dispositivo. A fala grava o áudio do aluno com `MediaRecorder`
 (suportado em PC, iOS 14.3+ e Android) e envia para transcrição via OpenAI (gpt-transcribe) — não depende mais do
 `SpeechRecognition` do navegador, que nunca existiu em nenhum navegador no iOS. Se o microfone não estiver

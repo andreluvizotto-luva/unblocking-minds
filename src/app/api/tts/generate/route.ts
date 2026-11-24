@@ -40,10 +40,18 @@ function hashSeed(seed: string) {
 // "voiceSeed" (o id da aula), então cada aula soa com uma voz
 // diferente, mas consistente do início ao fim daquela mesma aula.
 export async function POST(req: Request) {
+  // Provedor do TTS. A OpenAI desliga o gpt-4o-mini-tts em 06/01/2027 e o
+  // sucessor indicado (gpt-realtime-2.1-mini) só existe na Realtime API, que
+  // não garante ler o texto palavra por palavra — e a Escuta precisa do texto
+  // exato da aula, porque as perguntas são sobre ele. Por isso a troca é para
+  // o Google Cloud Text-to-Speech, feito para ler texto literal. Enquanto
+  // GOOGLE_TTS_API_KEY não estiver configurada, segue tudo na OpenAI como antes:
+  // dá para fazer o deploy deste código sem mudar nada e trocar só pela variável.
+  const googleKey = process.env.GOOGLE_TTS_API_KEY;
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+  if (!googleKey && !apiKey) {
     return NextResponse.json(
-      { error: "OPENAI_API_KEY não configurada no servidor. Adicione-a ao .env.local e reinicie o app." },
+      { error: "Nenhuma chave de TTS configurada no servidor (GOOGLE_TTS_API_KEY ou OPENAI_API_KEY)." },
       { status: 500 }
     );
   }
@@ -110,28 +118,12 @@ export async function POST(req: Request) {
       ? requestedVoice
       : OPENAI_VOICES[hashSeed(String(body?.voiceSeed || "default")) % OPENAI_VOICES.length];
 
-  const res = await fetch("https://api.openai.com/v1/audio/speech", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: TTS_MODEL,
-      voice,
-      input: text,
-      instructions: TTS_INSTRUCTIONS,
-      speed: 0.95,
-      response_format: "mp3",
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    return NextResponse.json({ error: `Falha ao gerar áudio (OpenAI): ${errText}` }, { status: 502 });
+  let audioBuffer: ArrayBuffer;
+  try {
+    audioBuffer = googleKey ? await synthesizeGoogle(googleKey, text, voice) : await synthesizeOpenAI(apiKey!, text, voice);
+  } catch (e: any) {
+    return NextResponse.json({ error: `Falha ao gerar áudio: ${e?.message || e}` }, { status: 502 });
   }
-
-  const audioBuffer = await res.arrayBuffer();
 
   if (cachePath) {
     // Guarda para a próxima montagem do bloco não precisar gerar de novo.
@@ -153,4 +145,65 @@ export async function POST(req: Request) {
       "Cache-Control": cachePath ? "private, max-age=31536000, immutable" : "no-store",
     },
   });
+}
+
+async function synthesizeOpenAI(apiKey: string, text: string, voice: string): Promise<ArrayBuffer> {
+  const res = await fetch("https://api.openai.com/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: TTS_MODEL,
+      voice,
+      input: text,
+      instructions: TTS_INSTRUCTIONS,
+      speed: 0.95,
+      response_format: "mp3",
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`OpenAI ${res.status}: ${errText.slice(0, 300)}`);
+  }
+  return res.arrayBuffer();
+}
+
+// O front continua escolhendo a voz pelos nomes da OpenAI (SkillBlocks.tsx os
+// separa por gênero para as aulas comparativas). Aqui cada nome vira uma voz
+// Neural2 do Google do mesmo gênero, para não precisar mexer no front nem no
+// cache: áudios já gravados no Storage continuam valendo para as aulas antigas.
+const GOOGLE_VOICES: Record<string, string> = {
+  echo: "en-US-Neural2-D",
+  onyx: "en-US-Neural2-J",
+  fable: "en-US-Neural2-A",
+  nova: "en-US-Neural2-F",
+  shimmer: "en-US-Neural2-H",
+  alloy: "en-US-Neural2-C",
+};
+
+async function synthesizeGoogle(apiKey: string, text: string, voice: string): Promise<ArrayBuffer> {
+  // O Google limita a 5.000 bytes de texto por pedido. Os textos de Escuta
+  // ficam bem abaixo disso; se um dia passar, o erro volta como 502 e o bloco
+  // mostra o aviso de falha em vez de travar a aula.
+  const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      input: { text },
+      voice: { languageCode: "en-US", name: GOOGLE_VOICES[voice] || GOOGLE_VOICES.alloy },
+      // Um pouco mais devagar que a fala normal, como a orientação que o
+      // gpt-4o-mini-tts recebia (TTS_INSTRUCTIONS) para quem está aprendendo.
+      audioConfig: { audioEncoding: "MP3", speakingRate: 0.9 },
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Google ${res.status}: ${errText.slice(0, 300)}`);
+  }
+  const data = (await res.json()) as { audioContent?: string };
+  if (!data.audioContent) throw new Error("Google não devolveu áudio");
+  const buf = Buffer.from(data.audioContent, "base64");
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
 }
