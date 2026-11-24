@@ -38,7 +38,7 @@ export const TEMAS: Record<Exclude<TemaSazonal, null>, TemaConfig> = {
     saudacao: "Happy Thanksgiving",
     rotulo: "Thanksgiving",
     titulo: "Aula especial de Thanksgiving",
-    descricao: "Tradições, a ceia em família e o vocabulário da gratidão, no seu nível.",
+    descricao: "Tradições, a ceia em família e o “Going around the table”: na sua vez, diga pelo que você é grato.",
   },
 };
 

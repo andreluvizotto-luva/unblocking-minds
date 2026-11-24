@@ -315,6 +315,9 @@ export default function HomePage() {
     if (!temaCfg) return;
     setTopicKind("custom");
     setCustomTopic(temaCfg.assunto);
+    // O "Going around the table" do Thanksgiving fica na fala: garante um
+    // formato que tenha fala.
+    if (tema === "thanksgiving" && !LESSON_FORMATS.find((f) => f.id === format)?.skills.includes("speaking")) setFormat("full");
   };
 
   // O atalho "Treinar …" do Perfil chega aqui com ?format=, já com o formato

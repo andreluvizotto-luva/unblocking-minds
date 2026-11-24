@@ -6,6 +6,7 @@ import { getSkillDifficulty } from "@/lib/skill-difficulty";
 import { requireActiveUser } from "@/lib/require-active-user";
 import { embaralharAlternativas } from "@/lib/embaralhar-alternativas";
 import { mensagemParaOAluno } from "@/lib/erro-do-aluno";
+import { TEMAS } from "@/lib/tema-sazonal";
 
 // Formatos de aula: em vez da aula completa (5 habilidades), o aluno pode
 // pedir um recorte mais curto. As duplas foram escolhidas pra fazer sentido
@@ -188,10 +189,20 @@ Se o texto for uma situação válida, construa a aula inteira como uma simulaç
   }`);
   }
   if (skills.includes("listening")) schemaParts.push(`  "listening": ${listeningSchema}`);
+  // Aula especial de Thanksgiving: a fala vira o "Going around the table", a
+  // tradição de cada pessoa à mesa dizer pelo que é grata. Só quando o assunto
+  // é exatamente o do atalho do tema sazonal.
+  const goingAroundTheTable = topicKind === "custom" && cleanedCustomTopic === TEMAS.thanksgiving.assunto;
+  const speakingPrompt = goingAroundTheTable
+    ? `consigna em inglês para o exercício 'Thanksgiving: going around the table'. Comece com o título 'Going around the table' e descreva a cena: é a ceia de Thanksgiving, a família está à mesa e cada pessoa, na sua vez, diz pelo que é grata este ano. Inclua de 2 a 3 falas curtas de outras pessoas da mesa (ex: Grandma: I'm thankful for having everyone here tonight.) e termine dizendo que agora é a vez do estudante: falar por 30-60s sobre pelo que é grato e por quê. Linguagem adequada ao nível ${level}.${difficultyNote("speaking", "Fala")}`
+    : `consigna em inglês pedindo para o estudante falar por 30-60s sobre o tema, adequada ao nível ${level}.${difficultyNote("speaking", "Fala")}`;
+  const speakingPoints = goingAroundTheTable
+    ? `["3 pontos em inglês que a fala do estudante deve cobrir na sua vez à mesa, calibrados ao nível ${level}, ex: dizer por quem ou pelo que é grato, explicar por quê, usar 'I'm thankful for' ou 'I'm grateful that'"]`
+    : `["ponto 1", "ponto 2", "ponto 3"]`;
   if (skills.includes("speaking")) {
     schemaParts.push(`  "speaking": {
-    "prompt": "consigna em inglês pedindo para o estudante falar por 30-60s sobre o tema, adequada ao nível ${level}.${difficultyNote("speaking", "Fala")}",
-    "targetPoints": ["ponto 1", "ponto 2", "ponto 3"],
+    "prompt": "${speakingPrompt}",
+    "targetPoints": ${speakingPoints},
     "repeat": [
       {
         "sentence": "frase natural em inglês, relacionada ao tema do dia, de 6 a 12 palavras, para o estudante ouvir e repetir em voz alta (calibrada para o nível ${level}, com sons e ritmo úteis para praticar pronúncia)",
